@@ -22,4 +22,15 @@ func (r *router) HandleFunc(method, pattern string, h http.HandlerFunc) {
 	m[pattern] = h
 }
 
-// http.Handler 인터페이스로 사용하기 위한 ServeHTTP(http.ResponseWriter, *http.Request) 메서드 정의ß
+// http.Handler 인터페이스로 사용하기 위한 ServeHTTP(http.ResponseWriter, *http.Request) 메서드 정의
+// ServeHTTP 메서드는 웹 요청의 http 메서드와 URL 경로를 분석해서 그에 맞는 핸들러를 찾아 동작시킨다.
+func (r *router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if m, ok := r.handlers[req.Method]; ok {
+		if h, ok := m[req.URL.Path]; ok {
+			// 요청 URL에 해당하는 핸들러 수행
+			h(w, req)
+			return
+		}
+	}
+	http.NotFound(w, req)
+}
