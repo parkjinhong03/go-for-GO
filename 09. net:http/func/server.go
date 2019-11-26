@@ -47,3 +47,7 @@ func (s *Server) Run(addr string) {
 		panic(err)
 	}
 }
+
+func (s *Server) Use(middleware ...Middleware) {
+	s.middlewares = append(s.middlewares, middleware...)
+}
