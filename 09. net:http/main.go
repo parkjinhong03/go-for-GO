@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+type User struct {
+	Id string
+	AddressId string
+}
+
 func main() {
 	r := net.NewServer()
 
@@ -17,14 +22,13 @@ func main() {
 	})
 
 	r.HandleFunc("GET", "/users/:user_id", func(c *net.Context) {
-		if c.Params["user_id"] == "0" {
-			panic("id is zero")
-		}
-		fmt.Fprintf(c.ResponseWriter, "recieve user %v\n", c.Params["user_id"])
+		u := User{Id:c.Params["user_id"].(string)}
+		c.RenderXml(u)
 	})
 
 	r.HandleFunc("GET", "/users/:user_id/addresses/:address_id", func(c *net.Context) {
-		fmt.Fprintf(c.ResponseWriter, "retrieve user %v's address %v\n", c.Params["user_id"], c.Params["address_id"])
+		u := User{Id:c.Params["user_id"].(string), AddressId:c.Params["address_id"].(string)}
+		c.RenderJson(u)
 	})
 
 	r.HandleFunc("POST", "/users", func(c *net.Context) {

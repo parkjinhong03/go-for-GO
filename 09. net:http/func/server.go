@@ -25,7 +25,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := &Context{
 		Params: map[string]interface{}{},
 		ResponseWriter: w,
-		Request:        r,
+		Request: 		r,
 	}
 	for k, v := range r.URL.Query() {
 		c.Params[k] = v[0]

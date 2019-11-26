@@ -2,7 +2,6 @@ package net
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"path"
@@ -45,7 +44,6 @@ func RecoverHandler(next HandlerFunc) HandlerFunc {
 func ParseFormHandler(next HandlerFunc) HandlerFunc {
 	return func(c *Context) {
 		c.Request.ParseForm()
-		fmt.Println(c.Request.PostForm)
 		for k, v := range c.Request.PostForm {
 			if len(k) > 0 {
 				c.Params[k] = v[0]
