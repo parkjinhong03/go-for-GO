@@ -3,7 +3,9 @@ package net
 import (
 	"encoding/json"
 	"encoding/xml"
+	"html/template"
 	"net/http"
+	"path/filepath"
 )
 
 
@@ -44,4 +46,20 @@ func (c *Context) RenderErr(code int, err error) {
 			http.Error(c.ResponseWriter, http.StatusText(defaultErr), defaultErr)
 		}
 	}
+}
+
+var templates = map[string]*template.Template{}
+
+func (c *Context) RenderTemplate(path string, v interface{}) {
+	t, ok := templates[path]
+	if !ok {
+		t = template.Must(template.ParseFiles(filepath.Join(".", path)))
+		templates[path] = t
+	}
+
+	t.Execute(c.ResponseWriter, v)
+}
+
+func (c *Context) Redirect(url string) {
+	http.Redirect(c.ResponseWriter, c.Request, url, http.StatusMovedPermanently)
 }

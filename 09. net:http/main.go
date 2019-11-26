@@ -3,6 +3,7 @@ package main
 import (
 	"./func"
 	"fmt"
+	"time"
 )
 
 type User struct {
@@ -14,7 +15,7 @@ func main() {
 	r := net.NewServer()
 
 	r.HandleFunc("GET", "/", func(c *net.Context) {
-		fmt.Fprintln(c.ResponseWriter, "welcome!", c.Params)
+		c.RenderTemplate("/public/index.html", map[string]interface{}{"time":time.Now()})
 	})
 
 	r.HandleFunc("GET", "/about", func(c *net.Context) {
