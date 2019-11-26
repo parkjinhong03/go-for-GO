@@ -1,13 +1,13 @@
 package main
 
 import (
-	"./router"
+	"./func"
 	"fmt"
 	"net/http"
 )
 
 func main() {
-	r := router.Router{Handlers: make(map[string]map[string]http.HandlerFunc)}
+	r := net.Router{Handlers: make(map[string]map[string]http.HandlerFunc)}
 
 	r.HandleFunc("GET", "/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "welcome!")

@@ -1,4 +1,4 @@
-package router
+package net
 
 import (
 	"net/http"
@@ -31,6 +31,8 @@ func (r Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// http 메서드에 맞는 모든 handlers를 반복하여 요청 URL에 해당하는 handler를 찾음
 	for patterns, handler := range r.Handlers[req.Method] {
 		if ok, _ := match(patterns, req.URL.Path); ok {
+			// Context 생성
+
 			// 요청 URL에 해당하는 handler 실행
 			handler(w, req)
 			return

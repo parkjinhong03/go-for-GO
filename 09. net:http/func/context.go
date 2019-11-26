@@ -1,4 +1,4 @@
-package context
+package net
 
 import "net/http"
 
@@ -10,3 +10,5 @@ type Context struct {
 	ResponseWriter http.ResponseWriter
 	Request *http.Request
 }
+
+type HandlerFunc func(*Context)
