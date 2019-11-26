@@ -25,30 +25,23 @@ func (r *Router) HandleFunc(method, pattern string, h HandlerFunc) {
 	m[pattern] = h
 }
 
-// http.Handler 인터페이스로 사용하기 위한 ServeHTTP(http.ResponseWriter, *http.Request) 메서드 정의
-// ServeHTTP 메서드는 웹 요청의 http 메서드와 URL 경로를 분석해서 그에 맞는 핸들러를 찾아 동작시킨다.
-func (r Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// http 메서드에 맞는 모든 handlers를 반복하여 요청 URL에 해당하는 handler를 찾음
-	for patterns, handler := range r.Handlers[req.Method] {
-		if ok, params := match(patterns, req.URL.Path); ok {
-			// Context 생성
-			c := Context{
-				Params:         make(map[string]interface{}),
-				ResponseWriter: w,
-				Request:        req,
+func (r *Router) handler() HandlerFunc {
+	return func(c *Context) {
+		for pattern, handler := range r.Handlers[c.Request.Method] {
+			if ok, params := match(pattern, c.Request.URL.Path); ok {
+				for k, v := range params {
+					c.Params[k] = v
+				}
+				// 요청 URL에 해당하는 handler 수행
+				handler(c)
+				return
 			}
-			for k, v := range params {
-				c.Params[k] = v
-			}
-
-			// 요청 URL에 해당하는 handler 실행
-			handler(&c)
-			return
 		}
+		http.NotFound(c.ResponseWriter, c.Request)
+		return
 	}
-	http.NotFound(w, req)
-	return
 }
+
 
 func match(pattern, path string) (bool, map[string]string) {
 	// 패턴과 패스가 정확히 일치하면 바로 true를 반환
