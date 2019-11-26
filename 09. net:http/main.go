@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -87,7 +86,7 @@ func main() {
 
 	r.Use(AuthHandler)
 
-	r.Run(":8080")
+	r.Run(":8000")
 }
 
 func CheckLogin(username, password string) bool {
