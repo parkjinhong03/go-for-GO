@@ -9,9 +9,9 @@ import (
 func main() {
 	r := net.Router{Handlers: make(map[string]map[string]net.HandlerFunc)}
 
-	r.HandleFunc("GET", "/", func(c *net.Context) {
+	r.HandleFunc("GET", "/", net.LogHandler(func(c *net.Context) {
 		fmt.Fprintln(c.ResponseWriter, "welcome!")
-	})
+	}))
 
 	r.HandleFunc("GET", "/about", func(c *net.Context) {
 		fmt.Fprintln(c.ResponseWriter, "about")
