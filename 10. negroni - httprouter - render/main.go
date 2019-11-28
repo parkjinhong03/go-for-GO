@@ -1,6 +1,7 @@
 package main
 
 import (
+	sessions "github.com/goincremental/negroni-sessions"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -23,6 +24,17 @@ func main() {
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		// 렌더러를 사용하여 템플릿 렌더링
 		renderer.HTML(w, http.StatusOK, "index", map[string]string{"title":"Simple Chat!"})
+	})
+
+	router.GET("/login", func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		// 로그인 페이지 렌더링
+		renderer.HTML(w, http.StatusOK, "login", nil)
+	})
+
+	router.GET("/logout", func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		// 세션에서 사용자 정보 제거 후 로그인 페이지로 이동
+		sessions.GetSession(r).Delete(currentUserKey)
+		http.Redirect(w, r , "/login", http.StatusFound)
 	})
 
 	// negroni 미들웨어 생성
