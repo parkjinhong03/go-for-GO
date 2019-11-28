@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./session"
 	sessions "github.com/goincremental/negroni-sessions"
 	"net/http"
 
@@ -33,7 +34,7 @@ func main() {
 
 	router.GET("/logout", func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		// 세션에서 사용자 정보 제거 후 로그인 페이지로 이동
-		sessions.GetSession(r).Delete(currentUserKey)
+		sessions.GetSession(r).Delete(session.CurrentUserKey)
 		http.Redirect(w, r , "/login", http.StatusFound)
 	})
 

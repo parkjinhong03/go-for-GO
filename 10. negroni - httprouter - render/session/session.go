@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"encoding/json"
@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	currentUserKey = "oauth2_current_user"	// 세션에 저장되는 CurrentUser 키
-	sessionDuration = time.Hour	// 로그인 세션 유지 시간
+	CurrentUserKey = "oauth2_current_user"	// 세션에 저장되는 CurrentUser 키
+	SessionDuration = time.Hour	// 로그인 세션 유지 시간
 )
 
 type User struct {
@@ -28,18 +28,18 @@ func (u *User) Valid() bool {
 
 func (u *User) Refresh() {
 	// 만료 시간 연장
-	u.Exprired = time.Now().Add(sessionDuration)
+	u.Exprired = time.Now().Add(SessionDuration)
 }
 
 func GetCurrentUser(r *http.Request) *User {
 	// 세선에서 CurrentUser 정보를 불러옴
 	s := sessions.GetSession(r)
 
-	if s.Get(currentUserKey) == nil {
+	if s.Get(CurrentUserKey) == nil {
 		return nil
 	}
 
-	data := s.Get(currentUserKey).([]byte)
+	data := s.Get(CurrentUserKey).([]byte)
 	var u User
 	json.Unmarshal(data, &u)
 	return &u
@@ -53,5 +53,5 @@ func SetCurrentUser(r *http.Request, u *User) {
 
 	s := sessions.GetSession(r)
 	val, _ := json.Marshal(u)
-	s.Set(currentUserKey, val)
+	s.Set(CurrentUserKey, val)
 }

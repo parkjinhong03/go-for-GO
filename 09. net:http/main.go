@@ -65,7 +65,7 @@ func main() {
 	})
 
 	r.HandleFunc("GET", "/login", func(c *net.Context) {
-		c.RenderTemplate("/public/login.html", map[string]interface{}{
+		c.RenderTemplate("/public/login.tmpl", map[string]interface{}{
 			"message": "로그인이 필요합니다.",
 		})
 	})
