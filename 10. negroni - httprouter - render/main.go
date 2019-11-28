@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./auth"
 	"./session"
 	sessions "github.com/goincremental/negroni-sessions"
 	"net/http"
@@ -38,6 +39,8 @@ func main() {
 		http.Redirect(w, r , "/login", http.StatusFound)
 	})
 
+	router.GET("/auth/:action/:provider", auth.LoginHandler)
+
 	// negroni 미들웨어 생성
 	n := negroni.Classic()
 
@@ -45,5 +48,5 @@ func main() {
 	n.UseHandler(router)
 
 	// 웹 서버 실행
-	n.Run(":8000")
+	n.Run(":3000")
 }
