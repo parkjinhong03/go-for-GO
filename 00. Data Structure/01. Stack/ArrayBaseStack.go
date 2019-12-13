@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-const StackLen = 10
+const StackLen = 5
 type Data interface {}
 
 type Stack struct {
@@ -36,33 +36,50 @@ func (ps *Stack) SIsFull() bool {
 }
 
 func (ps *Stack) SPush(data Data) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
+	pushErrorHandler(func(ps *Stack, data Data) {
+		if ps.SIsFull() {
+			panic("Memory is FULL!!")
+		} else {
+			ps.topIndex++
+			ps.stackArr[ps.topIndex] = data
 		}
-	}()
-
-	if ps.SIsFull() {
-		panic("Memory is FULL!!")
-	} else {
-		ps.topIndex++
-		ps.stackArr[ps.topIndex] = data
-	}
+	})(ps, data)
 }
 
 func (ps *Stack) SPop() Data {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
+	return popErrorHandler(func(ps *Stack) Data {
+		if ps.SIsEmpty() {
+			panic("Memory is EMPTY!!")
+			return nil
+		} else {
+			rIdx := ps.topIndex
+			ps.topIndex -= 1
+			return ps.stackArr[rIdx]
 		}
-	}()
+	})(ps)
+}
 
-	if ps.SIsEmpty() {
-		panic("Memory is EMPTY!!")
-	} else {
-		rIdx := ps.topIndex
-		ps.topIndex -= 1
-		return ps.stackArr[rIdx]
+func pushErrorHandler(handler func(ps *Stack, data Data)) func(ps *Stack, data Data) {
+	return func(ps *Stack, data Data) {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Println(err)
+			}
+		}()
+
+		handler(ps, data)
+	}
+}
+
+func popErrorHandler(handler func(ps *Stack) Data) func (ps *Stack) Data {
+	return func(ps *Stack) Data {
+		defer func() {
+			if err:=recover(); err != nil{
+				fmt.Println(err)
+			}
+		}()
+
+		return handler(ps)
 	}
 }
 
