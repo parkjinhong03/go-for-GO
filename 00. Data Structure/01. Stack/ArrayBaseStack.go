@@ -36,8 +36,14 @@ func (ps *Stack) SIsFull() bool {
 }
 
 func (ps *Stack) SPush(data Data) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	if ps.SIsFull() {
-		fmt.Println("Memory is FULL!!")
+		panic("Memory is FULL!!")
 	} else {
 		ps.topIndex++
 		ps.stackArr[ps.topIndex] = data
@@ -45,9 +51,14 @@ func (ps *Stack) SPush(data Data) {
 }
 
 func (ps *Stack) SPop() Data {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	if ps.SIsEmpty() {
-		fmt.Println("Memory is EMPTY!!")
-		return nil
+		panic("Memory is EMPTY!!")
 	} else {
 		rIdx := ps.topIndex
 		ps.topIndex -= 1
