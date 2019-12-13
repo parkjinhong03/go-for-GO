@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 const ListLen = 100
 type LData interface{}
@@ -12,7 +15,7 @@ type List struct {
 	curPosition int		// 데이터 참조위치를 기록
 }
 
-func (plist *List) NewList() *List {
+func NewList() *List {
 	return &List{
 		numOfData:	 0,
 		curPosition: -1,
@@ -22,10 +25,11 @@ func (plist *List) NewList() *List {
 func (plist *List) LInsert(data LData) {
 	if plist.numOfData >= ListLen {
 		fmt.Println("저장이 불가능합니다.")
+		return
 	}
 
 	plist.arr[plist.numOfData] = data
-	plist.curPosition ++
+	plist.numOfData++
 }
 
 func (plist *List) LFirst(pdata *LData) bool {
@@ -48,18 +52,39 @@ func (plist *List) LNext(pdata *LData) bool {
 	return true
 }
 
-func (plist *List) LRemove() LData {
-	var rdata LData = plist.arr[plist.curPosition]
+func (plist *List) LRemove() (LData, error) {
+	if plist.curPosition < 0 {
+		return nil, errors.New("삭제가 불가능합니다")
+	}
+	rdata := plist.arr[plist.curPosition]
 
-	for i:=plist.curPosition; i<plist.numOfData; i++ {
+	for i:=plist.curPosition; i<plist.numOfData-1; i++ {
 		plist.arr[i] = plist.arr[i+1]
 	}
 
+	if plist.curPosition != 0 {
+		plist.curPosition--
+	}
 	plist.numOfData--
-	plist.curPosition--
-	return rdata
+	return rdata, nil
 }
 
-func (plist *List) LCount() int {
-	return plist.numOfData
+func (plist List) LPrint() {
+	var data LData
+
+	fmt.Printf("현재 참조 위치: %d | 현재 데이터의 수: %d\n", plist.curPosition, plist.numOfData)
+
+	if plist.LFirst(&data) {
+		fmt.Print(data, " ")
+
+		for {
+			if nData := plist.LNext(&data); nData {
+				fmt.Print(data, " ")
+				continue
+			}
+			break
+		}
+		fmt.Println()
+	}
+
 }
