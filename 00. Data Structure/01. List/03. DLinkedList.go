@@ -4,7 +4,7 @@ import "fmt"
 
 type DData interface {}
 
-type SortingFunc func(Data, Data) int
+type SortingFunc func(DData, DData) int
 
 type DLinkedList struct {
 	head *DNode // 더미 노드를 가리키는 필드
@@ -86,21 +86,22 @@ func (plist *DLinkedList) LNext(data *DData) bool {
 
 func (plist *DLinkedList) LRemove() DData {
 	rData := plist.cur.data
-	plist.before = plist.cur.next
+	plist.before.next = plist.cur.next
 	plist.cur = plist.before
 	plist.numOfData--
 	return rData
 }
 
-func (plist *DLinkedList) LPrint() {
+func (plist DLinkedList) LPrint() {
+	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
 	data := new(DData)
 
 	if plist.LFirst(data) {
-		fmt.Print(data, " ")
+		fmt.Print(*data, " ")
 
 		for {
 			if plist.LNext(data) {
-				fmt.Print(data, " ")
+				fmt.Print(*data, " ")
 				continue
 			}
 			break
@@ -112,4 +113,26 @@ func (plist *DLinkedList) LPrint() {
 
 func (plist *DLinkedList) SetSortRule(sf SortingFunc) {
 
+}
+
+func main() {
+	list := NewDLinkedList()
+	data := new(DData)
+
+	list.LInsert(1)
+	list.LInsert(2)
+	list.LInsert(3)
+
+	list.LPrint()
+	// 현재 데이터의 수: 3
+	// 3 2 1
+
+	list.LFirst(data)
+	list.LNext(data)
+	list.LNext(data)
+	list.LRemove()
+
+	list.LPrint()
+	// 현재 데이터의 수: 2
+	// 3 2
 }
