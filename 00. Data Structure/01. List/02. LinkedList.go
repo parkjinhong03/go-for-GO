@@ -109,3 +109,26 @@ func (plist LinkedList) LPrint() {
 		fmt.Println()
 	}
 }
+
+func main() {
+	list := NewLinkedList()
+	data := new(Data)
+
+	list.LInsert(1)
+	list.LInsert(2)
+	list.LInsert(3)
+
+	list.LPrint()
+	// before: nil
+	// cur: nil
+	// 1 2 3
+
+	list.LFirst(data)
+	list.LNext(data)
+	list.LRemove()
+
+	list.LPrint()
+	// before:  1
+	// cur:  1
+	// 1 3
+}
