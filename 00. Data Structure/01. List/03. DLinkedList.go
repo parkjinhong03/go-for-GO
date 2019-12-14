@@ -18,18 +18,53 @@ type DNode struct {
 }
 
 func NewDLinkedList() *DLinkedList {
+	return &DLinkedList{
+		head:      &DNode{
+			data: nil,
+			next: nil,
+		},
+		cur:       nil,
+		before:    nil,
+		numOfData: 0,
+		comp:      nil,
+	}
+}
+
+func NewDNode() *DNode {
+	return &DNode{
+		data: nil,
+		next: nil,
+	}
+}
+
+func (plist *DLinkedList) fInsert(data DData) {
+	newNode := NewDNode()
+	newNode.data = data
+
+	newNode.next = plist.head.next
+	plist.head.next = newNode
+
+	plist.numOfData++
+}
+
+func (plist *DLinkedList) sInsert(data DData) {
 
 }
 
-func (plist *DLinkedList) LInset(data DData) {
 
+func (plist *DLinkedList) LInsert(data DData) {
+	if plist.comp == nil {
+		plist.fInsert(data)
+	} else {
+		plist.sInsert(data)
+	}
 }
 
 func (plist *DLinkedList) LFirst(data *DData) bool {
 
 }
 
-func (plist *DLinkedList) LSecond(data *DData) bool {
+func (plist *DLinkedList) LNext(data *DData) bool {
 
 }
 
@@ -38,5 +73,5 @@ func (plist *DLinkedList) LRemove() DData {
 }
 
 func (plist *DLinkedList) SetSortRule(sf SortingFunc) {
-	
+
 }
