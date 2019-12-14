@@ -80,3 +80,32 @@ func (plist *LinkedList) LRemove() Data {
 	plist.cur = plist.before
 	return rpos
 }
+
+func (plist LinkedList) LPrint() {
+	data := new(Data)
+
+	if plist.before == nil {
+		fmt.Println("before: nil")
+	} else {
+		fmt.Println("before: ", plist.before.data)
+	}
+	if plist.cur == nil {
+		fmt.Println("cur: nil")
+	} else {
+		fmt.Println("cur: ", plist.cur.data)
+	}
+
+	if plist.LFirst(data) {
+		fmt.Print(*data, " ")
+
+		for {
+			if plist.LNext(data) {
+				fmt.Print(*data , " ")
+				continue
+			}
+			break
+		}
+
+		fmt.Println()
+	}
+}
