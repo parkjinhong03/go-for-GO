@@ -61,11 +61,25 @@ func (plist *DLinkedList) LInsert(data DData) {
 }
 
 func (plist *DLinkedList) LFirst(data *DData) bool {
-
+	if plist.head.next == nil {
+		return false
+	}
+	plist.cur = plist.head.next
+	plist.before = plist.head
+	
+	*data = plist.cur.data
+	return true
 }
 
 func (plist *DLinkedList) LNext(data *DData) bool {
+	if plist.cur.next == nil {
+		return false
+	}
 
+	plist.before = plist.cur
+	plist.cur = plist.cur.next
+	*data = plist.cur.data
+	return true
 }
 
 func (plist *DLinkedList) LRemove() DData {
