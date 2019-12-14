@@ -75,7 +75,7 @@ func (plist *CLinkedList) LFirst(data *CData) bool {
 }
 
 func (plist *CLinkedList) LNext(data *CData) bool {
-	if plist.tail == nil {
+	if plist.cur == plist.tail {
 		return false
 	}
 
@@ -106,12 +106,13 @@ func (plist *CLinkedList) LRemove() CData {
 func (plist *CLinkedList) LPrint() {
 	data := new(CData)
 
+	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
 	if plist.LFirst(data) {
-		fmt.Print(data, " ")
+		fmt.Print(*data, " ")
 
 		for {
 			if plist.LNext(data) {
-				fmt.Println(data, " ")
+				fmt.Print(*data, " ")
 				continue
 			}
 			break
@@ -119,4 +120,26 @@ func (plist *CLinkedList) LPrint() {
 
 		fmt.Println()
 	}
+}
+
+func main() {
+	list := NewCLinkedList()
+	data := new(CData)
+
+	list.LInsert(1)
+	list.LInsert(2)
+	list.LInsertFront(3)
+	list.LInsertFront(4)
+
+	list.LPrint()
+	// 현재 데이터의 수: 4
+	// 4 3 1 2
+
+	list.LFirst(data)
+	list.LNext(data)
+	list.LRemove()
+
+	list.LPrint()
+	// 현재 데이터의 수: 3
+	// 4 1 2
 }
