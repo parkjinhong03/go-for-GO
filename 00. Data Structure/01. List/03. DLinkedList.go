@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type DData interface {}
 
 type SortingFunc func(Data, Data) int
@@ -66,7 +68,7 @@ func (plist *DLinkedList) LFirst(data *DData) bool {
 	}
 	plist.cur = plist.head.next
 	plist.before = plist.head
-	
+
 	*data = plist.cur.data
 	return true
 }
@@ -83,7 +85,29 @@ func (plist *DLinkedList) LNext(data *DData) bool {
 }
 
 func (plist *DLinkedList) LRemove() DData {
+	rData := plist.cur.data
+	plist.before = plist.cur.next
+	plist.cur = plist.before
+	plist.numOfData--
+	return rData
+}
 
+func (plist *DLinkedList) LPrint() {
+	data := new(DData)
+
+	if plist.LFirst(data) {
+		fmt.Print(data, " ")
+
+		for {
+			if plist.LNext(data) {
+				fmt.Print(data, " ")
+				continue
+			}
+			break
+		}
+	}
+
+	fmt.Println()
 }
 
 func (plist *DLinkedList) SetSortRule(sf SortingFunc) {
