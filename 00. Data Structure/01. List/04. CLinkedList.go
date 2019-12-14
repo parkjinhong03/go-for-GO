@@ -86,5 +86,37 @@ func (plist *CLinkedList) LNext(data *CData) bool {
 }
 
 func (plist *CLinkedList) LRemove() CData {
-	
+	rData := plist.cur.data
+
+	if plist.cur == plist.tail {
+		if plist.tail == plist.tail.next {
+			plist.tail = nil
+		} else {
+			plist.tail = plist.before
+		}
+	}
+
+	plist.before.next = plist.cur.next
+	plist.cur = plist.before
+	plist.numOfData--
+
+	return rData
+}
+
+func (plist *CLinkedList) LPrint() {
+	data := new(CData)
+
+	if plist.LFirst(data) {
+		fmt.Print(data, " ")
+
+		for {
+			if plist.LNext(data) {
+				fmt.Println(data, " ")
+				continue
+			}
+			break
+		}
+
+		fmt.Println()
+	}
 }
