@@ -20,6 +20,7 @@ type Node struct {
 	next *Node
 }
 
+// 새로운 LinkedList 생성 및 초기화 후 주소값 반환 함수
 func NewLinkedList() *LinkedList {
 	return &LinkedList{
 		head:   nil,
@@ -29,6 +30,7 @@ func NewLinkedList() *LinkedList {
 	}
 }
 
+// 새로운 Node 생성 및 인자값으로 받은 값으로 초기화 후 주소값 반환 함수
 func newNode(data Data) *Node {
 	return &Node{
 		data: data,
@@ -36,6 +38,7 @@ func newNode(data Data) *Node {
 	}
 }
 
+// 리시버로 받은 연결 리스트의 맨 마지막 부분에 새 노드를 추가하는 메서드
 func (plist *LinkedList) LInsert(data Data) {
 	newNode := newNode(data)
 
@@ -48,6 +51,7 @@ func (plist *LinkedList) LInsert(data Data) {
 	plist.tail = newNode
 }
 
+// 리시버로 받은 연결 리스트의 첫 번째 노드를 참조한 후 해당 노드의 값을 매개변수에 담는 메서드
 func (plist *LinkedList) LFirst(data *Data) bool {
 	if plist.head == nil {
 		return false
@@ -59,6 +63,7 @@ func (plist *LinkedList) LFirst(data *Data) bool {
 	return true
 }
 
+// 리시버로 받은 연결 리스트의 현재 참조 노드의 다음 노드를 참조한 후 해당 노드의 값을 매개변수에 담는 메서드
 func (plist *LinkedList) LNext(data *Data) bool {
 	if plist.cur.next == nil {
 		return false
@@ -70,6 +75,7 @@ func (plist *LinkedList) LNext(data *Data) bool {
 	return true
 }
 
+// 리시버로 받은 연결 리스트의 현재 참조중인 노드를 삭제한 후 삭제한 값을 반환하는 메서드
 func (plist *LinkedList) LRemove() Data {
 	if plist.cur == nil {
 		fmt.Println("참조된 노드가 없습니다")
@@ -81,6 +87,7 @@ func (plist *LinkedList) LRemove() Data {
 	return rpos
 }
 
+// 리시버로 받은 연결 리스트의 현재 참조중인 값들과 저장된 값들을 출력하는 메서드
 func (plist LinkedList) LPrint() {
 	data := new(Data)
 
