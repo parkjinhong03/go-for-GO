@@ -8,8 +8,8 @@ type CData interface {}
 
 type CLinkedList struct {
 	tail *CNode
-	cur *Node
-	before *Node
+	cur *CNode
+	before *CNode
 	numOfData int
 }
 
@@ -64,13 +64,27 @@ func (plist *CLinkedList) LInsertFront(data CData) {
 }
 
 func (plist *CLinkedList) LFirst(data *CData) bool {
+	if plist.tail == nil {
+		return false
+	}
 
+	plist.before = plist.tail
+	plist.cur = plist.tail.next
+	*data = plist.cur.data
+	return true
 }
 
 func (plist *CLinkedList) LNext(data *CData) bool {
+	if plist.tail == nil {
+		return false
+	}
 
+	plist.before = plist.cur
+	plist.cur = plist.cur.next
+	*data = plist.cur.data
+	return true
 }
 
 func (plist *CLinkedList) LRemove() CData {
-
+	
 }
