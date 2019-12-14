@@ -4,14 +4,14 @@ import "fmt"
 
 type DData interface {}
 
-type SortingFunc func(DData, DData) int
+type CompareFunc func(DData, DData) bool
 
 type DLinkedList struct {
 	head *DNode // 더미 노드를 가리키는 필드
 	cur *DNode // 참조 및 삭제를 돕는 필드
 	before *DNode // 삭제를 돕는 필드
 	numOfData int // 저장된 데이터의 수를 기록하기 위한 필드
-	comp SortingFunc // 정렬의 기준을 등록하기 위한 필드
+	comp CompareFunc // 정렬의 기준을 등록하기 위한 필드
 }
 
 type DNode struct {
@@ -50,7 +50,18 @@ func (plist *DLinkedList) fInsert(data DData) {
 }
 
 func (plist *DLinkedList) sInsert(data DData) {
+	newNode := NewDNode()
+	newNode.data = data
+	predNode := plist.head
 
+	for predNode.next != nil && plist.comp(data, predNode.next.data) {
+		predNode = predNode.next
+	}
+
+	newNode.next = predNode.next
+	predNode.next = newNode
+
+	plist.numOfData++
 }
 
 
@@ -111,13 +122,21 @@ func (plist DLinkedList) LPrint() {
 	fmt.Println()
 }
 
-func (plist *DLinkedList) SetSortRule(sf SortingFunc) {
-
+func (plist *DLinkedList) SetSortRule(comp CompareFunc) {
+	plist.comp = comp
 }
 
 func main() {
 	list := NewDLinkedList()
 	data := new(DData)
+
+	list.SetSortRule(func(d1 DData, d2 DData) bool {
+		if d1.(int) >= d1.(int) {
+			return true
+		} else {
+			return false
+		}
+	})
 
 	list.LInsert(1)
 	list.LInsert(2)
@@ -125,7 +144,7 @@ func main() {
 
 	list.LPrint()
 	// 현재 데이터의 수: 3
-	// 3 2 1
+	// 1 2 3
 
 	list.LFirst(data)
 	list.LNext(data)
@@ -134,5 +153,5 @@ func main() {
 
 	list.LPrint()
 	// 현재 데이터의 수: 2
-	// 3 2
+	// 1 2
 }
