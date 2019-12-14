@@ -19,6 +19,7 @@ type DNode struct {
 	next *DNode // 다음 노드의 주소값을 저장하기 위한 필드
 }
 
+// 더미 노드 기반의 연결 리스트 객체 생성 및 초기화 후 주소 반환
 func NewDLinkedList() *DLinkedList {
 	return &DLinkedList{
 		head:      &DNode{
@@ -32,6 +33,7 @@ func NewDLinkedList() *DLinkedList {
 	}
 }
 
+// 노드 생성 및 초기화 후 주소 반환
 func NewDNode() *DNode {
 	return &DNode{
 		data: nil,
@@ -39,6 +41,7 @@ func NewDNode() *DNode {
 	}
 }
 
+// 새 노드 생성 후 더미 노드와 연결시킴
 func (plist *DLinkedList) fInsert(data DData) {
 	newNode := NewDNode()
 	newNode.data = data
@@ -49,6 +52,7 @@ func (plist *DLinkedList) fInsert(data DData) {
 	plist.numOfData++
 }
 
+// 새 노드 생성 후 정의된 정렬 함수를 기준으로 노드를 연결시킴
 func (plist *DLinkedList) sInsert(data DData) {
 	newNode := NewDNode()
 	newNode.data = data
@@ -64,7 +68,7 @@ func (plist *DLinkedList) sInsert(data DData) {
 	plist.numOfData++
 }
 
-
+// 정의된 정렬 함수가 없다면 fInsert() 실행, 있으면 sInsert() 실행
 func (plist *DLinkedList) LInsert(data DData) {
 	if plist.comp == nil {
 		plist.fInsert(data)
@@ -73,6 +77,7 @@ func (plist *DLinkedList) LInsert(data DData) {
 	}
 }
 
+// 현재 참조 위치를 더미 노드 바로 다음 노드로 이동시킴
 func (plist *DLinkedList) LFirst(data *DData) bool {
 	if plist.head.next == nil {
 		return false
@@ -84,6 +89,7 @@ func (plist *DLinkedList) LFirst(data *DData) bool {
 	return true
 }
 
+// 참조 위치를 현재 참조 위치의 다음 연결 노드로 이동시킴
 func (plist *DLinkedList) LNext(data *DData) bool {
 	if plist.cur.next == nil {
 		return false
@@ -95,6 +101,7 @@ func (plist *DLinkedList) LNext(data *DData) bool {
 	return true
 }
 
+// 현재 참조된 위치의 노드 삭제 후 리스트 이어 붙힘
 func (plist *DLinkedList) LRemove() DData {
 	rData := plist.cur.data
 	plist.before.next = plist.cur.next
@@ -103,6 +110,7 @@ func (plist *DLinkedList) LRemove() DData {
 	return rData
 }
 
+// 현재 더미 연결 리스트에 입력된 데이터의 수와 그 값을 출력함
 func (plist DLinkedList) LPrint() {
 	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
 	data := new(DData)
@@ -122,6 +130,7 @@ func (plist DLinkedList) LPrint() {
 	fmt.Println()
 }
 
+// 정렬 함수를 매개변수로 받아 리시버 변수로 받은 객체의 필드에 등록함
 func (plist *DLinkedList) SetSortRule(comp CompareFunc) {
 	plist.comp = comp
 }
