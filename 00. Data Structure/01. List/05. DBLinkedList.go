@@ -6,18 +6,21 @@ import (
 
 type DBData interface {}
 
+// 양방향 연결 리스트를 구현하기 위한 구조체 정의
 type DBLinkedList struct {
 	head *DBNode
 	cur *DBNode
 	numOfData int
 }
 
+// 양방향 연결 리스트의 각각의 데이터가 저장될 노드 구조체 정의
 type DBNode struct {
 	data DBData
 	next *DBNode
 	prev *DBNode
 }
 
+// 새로운 DBLinkedList 객체를 생성 및 초기화 후 반환
 func NewDBLinkedList() *DBLinkedList {
 	return &DBLinkedList{
 		head:      nil,
@@ -26,6 +29,7 @@ func NewDBLinkedList() *DBLinkedList {
 	}
 }
 
+// 세로운 DBNode 객체를 생성 및 초기화 후 반환
 func NewDBNode(data DBData) *DBNode {
 	return &DBNode{
 		data:   data,
@@ -34,6 +38,7 @@ func NewDBNode(data DBData) *DBNode {
 	}
 }
 
+// 새로운 Node를 생성하여 DBLinkedList의 head 부분에 연결시킴
 func (plist *DBLinkedList) LInsert(data DBData) {
 	newNode := NewDBNode(data)
 
@@ -46,6 +51,7 @@ func (plist *DBLinkedList) LInsert(data DBData) {
 	plist.numOfData++
 }
 
+// DBLinkedList의 참조값을 head인 노드로 이동시킴
 func (plist *DBLinkedList) LFirst(data *DBData) bool {
 	if plist.head == nil {
 		return false
@@ -56,6 +62,7 @@ func (plist *DBLinkedList) LFirst(data *DBData) bool {
 	return true
 }
 
+// DBLinkedList의 참조값을 현재 참조중인 노드의 다음 연결 노드로 이동시킴
 func (plist *DBLinkedList) LNext(data *DBData) bool {
 	if plist.cur.next == nil {
 		return false
@@ -66,6 +73,7 @@ func (plist *DBLinkedList) LNext(data *DBData) bool {
 	return true
 }
 
+// DBLinkedList의 참조값을 현재 참조중인 노드의 이전 연결 노드로 이동시킴
 func (plist *DBLinkedList) LPrevious(data *DBData) bool {
 	if plist.cur.prev == nil {
 		return false
@@ -76,6 +84,7 @@ func (plist *DBLinkedList) LPrevious(data *DBData) bool {
 	return true
 }
 
+// DBLinkedList의 현재 참조 중인 노드를 삭제한 후 그 삭제한 값을 반환함
 func (plist *DBLinkedList) LRemove() DBData {
 	rData := plist.cur.data
 
@@ -96,6 +105,7 @@ func (plist *DBLinkedList) LRemove() DBData {
 	return rData
 }
 
+// 리시버 변수로 받은 DBLinkedList의 현재 총 데이터의 수와 그 값들을 출력함
 func (plist DBLinkedList) LPrint() {
 	data := new(DBData)
 	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
