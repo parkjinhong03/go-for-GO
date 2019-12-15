@@ -4,23 +4,37 @@ type DBDData interface {}
 
 type DBDLinkedList struct {
 	head *DBDNode
-	tail *DBNode
-	cur *DBNode
+	tail *DBDNode
+	cur *DBDNode
 	numOfData int
 }
 
 type DBDNode struct {
-	data DBData
-	next *DBNode
-	prev *DBNode
+	data DBDData
+	next *DBDNode
+	prev *DBDNode
 }
 
 func NewDBDLinkedList() *DBDLinkedList {
+	DBDLinkedList := DBDLinkedList{
+		head:      NewDBDNode(nil),
+		tail:      NewDBDNode(nil),
+		cur:       nil,
+		numOfData: 0,
+	}
 
+	DBDLinkedList.head.next = DBDLinkedList.tail
+	DBDLinkedList.tail.prev = DBDLinkedList.head
+
+	return &DBDLinkedList
 }
 
 func NewDBDNode(data DBDData) *DBDNode {
-	
+	return &DBDNode{
+		data: data,
+		next: nil,
+		prev: nil,
+	}
 }
 
 func (plist *DBDLinkedList) LInsert(data DBDData) {
