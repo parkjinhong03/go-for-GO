@@ -78,6 +78,20 @@ func (plist *DBLinkedList) LPrevious(data *DBData) bool {
 }
 
 func (plist *DBLinkedList) LRemove() DBData {
+	rData := plist.cur.data
 
+	if plist.cur == plist.head {
+		plist.cur.next.prev = nil
+		plist.head = plist.cur.next
+		plist.cur = plist.head
+	} else if plist.cur.next == nil {
+		plist.cur.prev.next = nil
+		plist.cur = plist.cur.prev
+	} else {
+		plist.cur.prev.next = plist.cur.next
+		plist.cur.next.prev = plist.cur.prev
+		plist.cur = plist.cur.next
+	}
+
+	return rData
 }
--
