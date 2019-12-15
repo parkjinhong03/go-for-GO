@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 )
 
 type DBData interface {}
@@ -93,5 +92,46 @@ func (plist *DBLinkedList) LRemove() DBData {
 		plist.cur = plist.cur.next
 	}
 
+	plist.numOfData--
 	return rData
+}
+
+func (plist DBLinkedList) LPrint() {
+	data := new(DBData)
+	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
+
+	if plist.LFirst(data) {
+		fmt.Print(*data, " ")
+
+		for {
+			if plist.LNext(data) {
+				fmt.Print(*data, " ")
+				continue
+			}
+			break
+		}
+		fmt.Println()
+	}
+}
+
+func main() {
+	list := NewDBLinkedList()
+	data := new(DBData)
+
+	list.LInsert(1)
+	list.LInsert(2)
+	list.LInsert(3)
+
+	list.LPrint()
+	// 현재 데이터의 수: 3
+	// 3 2 1
+
+	list.LFirst(data)
+	list.LNext(data)
+	list.LPrevious(data)
+	list.LRemove()
+
+	list.LPrint()
+	// 현재 데이터의 수: 2
+	// 2 1
 }
