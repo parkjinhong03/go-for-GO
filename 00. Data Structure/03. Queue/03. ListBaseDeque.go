@@ -15,19 +15,42 @@ type DNode struct {
 }
 
 func NewDequeue() *DQueue {
-
+	return &DQueue{
+		head:      nil,
+		tail:      nil,
+		numOfData: 0,
+	}
 }
 
 func NewDNode(data DData) *DNode {
-
+	return &DNode{
+		data: data,
+		next: nil,
+		prev: nil,
+	}
 }
 
 func (pq *DQueue) DQIsEmpty() bool {
-
+	if pq.head == nil {
+		return true
+	}
+	return false
 }
 
 func (pq *DQueue) DQAddFirst(data DData) {
+	newNode := NewDNode(data)
 
+	if pq.DQIsEmpty() {
+		pq.tail = newNode
+		pq.head = newNode
+	} else {
+		newNode.next = pq.head
+		newNode.prev = pq.head.prev
+		pq.head.prev.next = newNode
+		pq.head.prev = newNode
+	}
+
+	pq.numOfData++
 }
 
 func (pq *DQueue) DQAddLast(data DData) {
