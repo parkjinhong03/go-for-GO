@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type LData interface {}
 
 type LQueue struct {
@@ -36,6 +38,10 @@ func (pq *LQueue) QIsEmpty() bool {
 }
 
 func (pq *LQueue) Enqueue(data LData) {
+	if data == nil {
+		return
+	}
+
 	newNode := NewLNode(data)
 
 	if pq.QIsEmpty() {
@@ -50,9 +56,25 @@ func (pq *LQueue) Enqueue(data LData) {
 }
 
 func (pq *LQueue) Dequeue() LData {
+	if pq.QIsEmpty() {
+		return nil
+	}
 
+	rData := pq.front.data
+	pq.front = pq.front.next
+	pq.numOfData--
+	return rData
 }
 
 func (pq *LQueue) QPrint() {
+	fmt.Printf("현재 데이터의 갯수: %d\n", pq.numOfData)
 
+	cur := pq.front
+	for {
+		fmt.Print(cur.data, " ")
+		if cur.next == nil {
+			break
+		}
+		cur = cur.next
+	}
 }
