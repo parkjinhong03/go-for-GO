@@ -66,11 +66,37 @@ func (pq *DQueue) DQAddLast(data DData) {
 }
 
 func (pq *DQueue) DQRemoveFirst() DData {
+	rData := pq.head.data
 
+	if pq.DQIsEmpty() {
+		return nil
+	}
+
+	pq.head = pq.head.next
+	if pq.head == nil {
+		pq.tail = nil
+	} else {
+		pq.head.prev = nil
+	}
+
+	return rData
 }
 
 func (pq *DQueue) DQRemoveLast() DData {
+	rData := pq.tail.data
 
+	if pq.DQIsEmpty() {
+		return nil
+	}
+
+	pq.tail = pq.tail.prev
+	if pq.tail == nil {
+		pq.head = nil
+	} else {
+		pq.tail.next = nil
+	}
+
+	return rData
 }
 
 func (pq *DQueue) DQGetFirst() DData {
