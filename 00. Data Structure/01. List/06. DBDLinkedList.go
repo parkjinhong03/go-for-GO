@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type DBDData interface {}
 
 type DBDLinkedList struct {
@@ -87,4 +89,45 @@ func (plist *DBDLinkedList) LRemove() DBDData {
 
 	plist.numOfData--
 	return rData
+}
+
+func (plist *DBDLinkedList) LPrint() {
+	data := new(DBDData)
+
+	fmt.Printf("현재 데이터의 수: %d\n", plist.numOfData)
+	if plist.LFirst(data) {
+		fmt.Print(*data, " ")
+
+		for {
+			if plist.LNext(data) {
+				fmt.Print(*data, " ")
+				continue
+			}
+			break
+		}
+
+		fmt.Println()
+	}
+}
+
+func main() {
+	list := NewDBDLinkedList()
+	data := new(DBDData)
+
+	list.LInsert(1)
+	list.LInsert(2)
+	list.LInsert(3)
+
+	list.LPrint()
+	// 현재 데이터의 수: 3
+	// 1 2 3
+
+	list.LFirst(data)
+	list.LNext(data)
+	list.LPrev(data)
+	list.LRemove()
+
+	list.LPrint()
+	// 현재 데이터의 수: 2
+	// 2 3
 }
