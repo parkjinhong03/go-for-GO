@@ -38,7 +38,14 @@ func NewDBDNode(data DBDData) *DBDNode {
 }
 
 func (plist *DBDLinkedList) LInsert(data DBDData) {
+	newNode := NewDBDNode(data)
 
+	newNode.next = plist.tail
+	newNode.prev = plist.tail.prev
+	plist.tail.prev.next = newNode
+	plist.tail.prev = newNode
+
+	plist.numOfData++
 }
 
 func (plist *DBDLinkedList) LFirst(data DBDData) bool {
@@ -54,5 +61,12 @@ func (plist *DBDLinkedList) LPrev(data DBDData) bool {
 }
 
 func (plist *DBDLinkedList) LRemove() DBDData {
+	rData := plist.cur.data
 
+	plist.cur.prev.next = plist.cur.next
+	plist.cur.next.prev = plist.cur.prev
+	plist.cur = plist.cur.prev
+
+	plist.numOfData--
+	return rData
 }
