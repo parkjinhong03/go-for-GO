@@ -8,3 +8,27 @@ type CQueue struct {
 	front int
 	rear int
 }
+
+func NewCQueue() *CQueue {
+
+}
+
+func (pq *CQueue) QIsEmpty() bool {
+
+}
+
+func (pq *CQueue) QIsFull() bool {
+
+}
+
+func (pq *CQueue) Enqueue(data CData) {
+
+}
+
+func (pq *CQueue) Dequeue() CData {
+
+}
+
+func (pq *CQueue) QPrint() {
+
+}
