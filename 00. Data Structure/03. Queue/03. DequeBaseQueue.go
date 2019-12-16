@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type DData interface {}
 
 type DQueue struct {
@@ -78,7 +80,7 @@ func (pq *DQueue) DQRemoveFirst() DData {
 	} else {
 		pq.head.prev = nil
 	}
-
+	pq.numOfData--
 	return rData
 }
 
@@ -96,13 +98,36 @@ func (pq *DQueue) DQRemoveLast() DData {
 		pq.tail.next = nil
 	}
 
+	pq.numOfData--
 	return rData
 }
 
 func (pq *DQueue) DQGetFirst() DData {
+	if pq.DQIsEmpty() {
+		return nil
+	}
 
+	return pq.head.data
 }
 
 func (pq *DQueue) DQGetLast() DData {
+	if pq.DQIsEmpty() {
+		return nil
+	}
 
+	return pq.tail.data
+}
+
+func (pq *DQueue) DQPrint() {
+	fmt.Printf("현재 데이터의 갯수: %d\n", pq.numOfData)
+
+	cur := pq.head; for {
+		fmt.Print(cur.data, " ")
+		if cur.next == nil {
+			break
+		}
+		cur = cur.next
+	}
+
+	fmt.Println()
 }
