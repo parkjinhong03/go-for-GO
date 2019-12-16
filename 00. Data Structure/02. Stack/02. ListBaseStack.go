@@ -71,3 +71,22 @@ func (ps *ListStack) SPrint() {
 
 	fmt.Println()
 }
+
+func main() {
+	stack := NewListStack()
+
+	stack.SPush(1)
+	stack.SPush(2)
+	stack.SPush(3)
+
+	stack.SPrint()
+	// 현재 데이터의 수: 3
+	// 3 2 1
+
+	stack.SPop()
+	stack.SPop()
+
+	stack.SPrint()
+	// 현재 데이터의 수: 1
+	// 1
+}
