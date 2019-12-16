@@ -48,16 +48,34 @@ func (plist *DBDLinkedList) LInsert(data DBDData) {
 	plist.numOfData++
 }
 
-func (plist *DBDLinkedList) LFirst(data DBDData) bool {
+func (plist *DBDLinkedList) LFirst(data *DBDData) bool {
+	if plist.head.next == nil {
+		return false
+	}
 
+	plist.cur = plist.head.next
+	*data = plist.cur.data
+	return true
 }
 
-func (plist *DBDLinkedList) LNext(data DBDData) bool {
+func (plist *DBDLinkedList) LNext(data *DBDData) bool {
+	if plist.cur.next == plist.tail {
+		return false
+	}
 
+	plist.cur = plist.cur.next
+	*data = plist.cur.data
+	return true
 }
 
-func (plist *DBDLinkedList) LPrev(data DBDData) bool {
+func (plist *DBDLinkedList) LPrev(data *DBDData) bool {
+	if plist.cur.prev == plist.head {
+		return false
+	}
 
+	plist.cur = plist.cur.prev
+	*data = plist.cur.data
+	return true
 }
 
 func (plist *DBDLinkedList) LRemove() DBDData {
