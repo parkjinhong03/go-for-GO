@@ -42,19 +42,27 @@ func (pq *DQueue) DQAddFirst(data DData) {
 
 	if pq.DQIsEmpty() {
 		pq.tail = newNode
-		pq.head = newNode
 	} else {
 		newNode.next = pq.head
-		newNode.prev = pq.head.prev
-		pq.head.prev.next = newNode
 		pq.head.prev = newNode
 	}
 
+	pq.head = newNode
 	pq.numOfData++
 }
 
 func (pq *DQueue) DQAddLast(data DData) {
+	newNode := NewDNode(data)
 
+	if pq.DQIsEmpty() {
+		pq.head = newNode
+	} else {
+		newNode.prev = pq.tail
+		pq.tail.next = newNode
+	}
+
+	pq.tail = newNode
+	pq.numOfData++
 }
 
 func (pq *DQueue) DQRemoveFirst() DData {
