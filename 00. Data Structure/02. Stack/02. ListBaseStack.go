@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type LData interface {}
 
 type ListStack struct {
@@ -34,22 +36,38 @@ func (ps *ListStack) SIsEmpty() bool {
 }
 
 func (ps *ListStack) SPush(data LData) {
-	if ps.SIsEmpty() {
-		return
-	}
-
 	newNode := NewListNode(data)
 
 	newNode.next = ps.head
 	ps.head = newNode
-	
+
 	ps.numOfData++
 }
 
 func (ps *ListStack) SPop() LData {
+	if ps.SIsEmpty() {
+		return nil
+	}
 
+	rData := ps.head.data
+	ps.head = ps.head.next
+
+	ps.numOfData--
+	return rData
 }
 
 func (ps *ListStack) SPrint() {
+	curNode := ps.head
+	fmt.Printf("현재 데이터의 수: %d\n", ps.numOfData)
 
+	for {
+		fmt.Print(curNode.data, " ")
+
+		if curNode.next == nil {
+			break
+		}
+		curNode = curNode.next
+	}
+
+	fmt.Println()
 }
