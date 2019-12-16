@@ -68,11 +68,11 @@ func (pq *DQueue) DQAddLast(data DData) {
 }
 
 func (pq *DQueue) DQRemoveFirst() DData {
-	rData := pq.head.data
-
 	if pq.DQIsEmpty() {
 		return nil
 	}
+	rData := pq.head.data
+
 
 	pq.head = pq.head.next
 	if pq.head == nil {
@@ -85,11 +85,11 @@ func (pq *DQueue) DQRemoveFirst() DData {
 }
 
 func (pq *DQueue) DQRemoveLast() DData {
-	rData := pq.tail.data
-
 	if pq.DQIsEmpty() {
 		return nil
 	}
+	rData := pq.tail.data
+
 
 	pq.tail = pq.tail.prev
 	if pq.tail == nil {
@@ -121,6 +121,11 @@ func (pq *DQueue) DQGetLast() DData {
 func (pq *DQueue) DQPrint() {
 	fmt.Printf("현재 데이터의 갯수: %d\n", pq.numOfData)
 
+	if pq.DQIsEmpty() {
+		fmt.Println("데이터가 존재하지 않습니다.")
+		return
+	}
+
 	cur := pq.head; for {
 		fmt.Print(cur.data, " ")
 		if cur.next == nil {
@@ -130,4 +135,33 @@ func (pq *DQueue) DQPrint() {
 	}
 
 	fmt.Println()
+}
+
+func main() {
+	deque := NewDequeue()
+
+	deque.DQAddFirst(1)
+	deque.DQAddFirst(2)
+	deque.DQAddLast(3)
+	deque.DQAddLast(4)
+
+	deque.DQPrint()
+	// 현재 데이터의 갯수: 4
+	// 2 1 3 4
+
+	deque.DQRemoveFirst()
+	deque.DQRemoveLast()
+
+	deque.DQPrint()
+	// 현재 데이터의 갯수: 2
+	// 1 3
+
+	deque.DQRemoveLast()
+	deque.DQRemoveFirst()
+	deque.DQRemoveLast()
+	deque.DQRemoveFirst()
+
+	deque.DQPrint()
+	// 현재 데이터의 갯수: 0
+	// 데이터가 존재하지 않습니다.
 }
