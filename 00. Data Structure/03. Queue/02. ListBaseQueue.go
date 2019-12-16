@@ -69,6 +69,11 @@ func (pq *LQueue) Dequeue() LData {
 func (pq *LQueue) QPrint() {
 	fmt.Printf("현재 데이터의 갯수: %d\n", pq.numOfData)
 
+	if pq.QIsEmpty() {
+		fmt.Println("데이터가 존재하지 않습니다.")
+		return
+	}
+
 	cur := pq.front
 	for {
 		fmt.Print(cur.data, " ")
@@ -77,4 +82,26 @@ func (pq *LQueue) QPrint() {
 		}
 		cur = cur.next
 	}
+
+	fmt.Println()
+}
+
+func main() {
+	list := NewLQueue()
+
+	list.Enqueue(1)
+	list.Enqueue(2)
+	list.Enqueue(3)
+
+	list.QPrint()
+	// 현재 데이터의 갯수: 3
+	// 1 2 3
+
+	list.Dequeue()
+	list.Dequeue()
+	list.Dequeue()
+
+	list.QPrint()
+	// 현재 데이터의 갯수: 0
+	// 데이터가 존재하지 않습니다.
 }
