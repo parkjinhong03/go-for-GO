@@ -14,3 +14,19 @@ type Heap struct {
 	numOfData int
 	heapArr [HeapLen]HeapElem
 }
+
+func NewHeap() *Heap {
+
+}
+
+func (ph *Heap) HIsEmpty() bool {
+
+}
+
+func (ph *Heap) HInsert(data HData, pr Priority) {
+
+}
+
+func (ph *Heap) HDelete() HData {
+
+}
