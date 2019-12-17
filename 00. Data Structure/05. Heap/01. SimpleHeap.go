@@ -62,6 +62,27 @@ func (ph *Heap)getHiChildIDX(idx int) int {
 }
 
 func (ph *Heap) HInsert(data HData, pr Priority) {
+	idx := ph.numOfData+1
+	nelem := HeapElem{
+		pr:   pr,
+		data: data,
+	}
+	// 새 노드가 저장될 위치가 루트 노드의 위치가 아니라면 while문 반복
+	for idx!=1 {
+		// 새 노드와 부모 노드의 우선순위 비교
+		if pr < ph.heapArr[getParentIDX(idx)].pr {
+			// 만약 새 노드의 우선순위가 더 높다면 부모 노드 한 단계 실제로 내림
+			ph.heapArr[idx] = ph.heapArr[getParentIDX(idx)]
+			// 새 노드의 레벨을 한 레벨 올림, 실제로 값을 바꾸진 않고 인덱스 값만 갱신
+			idx = getParentIDX(idx)
+		} else {
+			// 만약 부모 노드의 우선순위가 더 높다면 반복문 중단
+			break
+		}
+	} // 반복문이 끝난 후의 idx 값을 새 노드가 대입될 heapArr의 인덱스 값이다.
+
+	ph.heapArr[idx] = nelem // 새 노드를 배열에 저장
+	ph.numOfData++
 }
 
 func (ph *Heap) HDelete() HData {
