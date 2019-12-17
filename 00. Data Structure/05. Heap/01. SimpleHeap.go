@@ -65,5 +65,26 @@ func (ph *Heap) HInsert(data HData, pr Priority) {
 }
 
 func (ph *Heap) HDelete() HData {
+	retData := ph.heapArr[1].data // 반환을 위해서 삭제할 데이터 저장
+	lastElem := ph.heapArr[ph.numOfData] // 힙의 마지막 노드 저저이
 
+	// 아래의 변수 parentIdx에는 내림차순으로 비교 후 마지막 노드가 저장될 위치정보가 담김.
+	var parentIdx = 1	// 기본적으로 루트 노드의 인덱스인 1 설정
+	var childIdx int
+
+	// 루트 노드의 우선순위가 높은 자식 노드를 시작으로 반복문 시작
+	for true {
+		childIdx = ph.getHiChildIDX(parentIdx)
+
+		if lastElem.pr <= ph.heapArr[childIdx].pr {
+			break // 마지막 노드의 우선순위보다 자식 노드의 우선순위가 높으면 반복문 탈출
+		}
+
+		ph.heapArr[parentIdx] = ph.heapArr[childIdx] // 마지막 노드보다 우선순위가 높으니 비교대상 노드의 위치를 한 레벨 올림
+		parentIdx = childIdx // 마지막 노드가 저장될 위치 정보를 한 레벨 내림
+	} // 반복문을 탈출하면 parentIdx에는 마지막 노드의 위치정보가 저장됨
+
+	ph.heapArr[parentIdx] = lastElem // 마지막 노드 최종 저장
+	ph.numOfData--
+	return retData
 }
