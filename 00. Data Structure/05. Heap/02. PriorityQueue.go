@@ -1,21 +1,32 @@
 // 02. ArrayBaseHeap을 import 했다는 조건으로 시작, min heap을 이용한 우선순위 큐 구현 코드
 package main
 
-type PQueue Heap
-type PQData HData
+import "fmt"
 
-func NewPQueue() *PQueue {
-
+func NewPQueue() *Heap {
+	return NewHeap()
 }
 
-func (pqq *PQueue) PQIsEmpty() bool {
-
+func PQIsEmpty(ppq *Heap) bool {
+	return ppq.HIsEmpty()
 }
 
-func (ppq *PQueue) PEnqueue(data PQData) {
-
+func PEnqueue(ppq *Heap, data HData) {
+	ppq.HInsert(data, Priority(ppq.numOfData))
 }
 
-func (ppq *PQueue) PDequeue() PQData {
+func PDequeue(ppq *Heap) HData {
+	return ppq.HDelete()
+}
 
+func main() {
+	pq := NewPQueue()
+
+	PEnqueue(pq, 'A')
+	PEnqueue(pq, 'B')
+	PEnqueue(pq, 'C')
+
+	for !PQIsEmpty(pq) {
+		fmt.Println(PDequeue(pq))
+	}
 }
