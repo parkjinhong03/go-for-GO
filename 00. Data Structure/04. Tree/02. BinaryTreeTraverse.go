@@ -1,4 +1,4 @@
-package _4__Tree
+package main
 
 import "fmt"
 
