@@ -55,5 +55,19 @@ func BSTInsert(pRoot **BTree.BTTreeNode, data BSTData) {
 
 // BST를 대상으로 데이터 탐색
 func BSTSearch(bst *BTree.BTTreeNode, target BSTData) *BTree.BTTreeNode {
+	cNode := bst
 
+	for cNode!=nil {
+		cd := BTree.GetTData(cNode)
+
+		if cd==target {
+			return cNode
+		} else if target.(int) > cd.(int) {
+			cNode = BTree.TGetRightSubTree(cNode)
+		} else {
+			cNode = BTree.TGetLeftSubTree(cNode)
+		}
+	}
+
+	return nil
 }
