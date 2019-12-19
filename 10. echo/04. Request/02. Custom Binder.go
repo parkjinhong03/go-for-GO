@@ -1,3 +1,6 @@
+// Custom Binder를 선언하지 않고 Bind() 메서드를 호출하면 실행되는 기본적인 Default Binder는 특정한 Context-Type의 Request Body 만을 디코딩할 수 있다.
+// 따라서 추가적인 Content-Type의 Request Body를 디코딩 하려면 Custom Binder를 선언해야 한다.
+
 package main
 
 import (
@@ -14,7 +17,7 @@ type CustomUser struct {
 // 커스텀 바인더를 생성하기 위해 빈 구조체 정의
 type CustomBinder struct {}
 
-// 위에서 만들 구조체에 Bind(interface{}, echo.Context) err 서명의 메서드를 추가하여 echo.Binder 인터페이스로 사용할 수 있게 함
+// 위에서 만든 구조체에 Bind(interface{}, echo.Context) err 서명의 메서드를 추가하여 echo.Binder 인터페이스로 사용할 수 있게 함
 func (cb CustomBinder) Bind(i interface{}, c echo.Context) (err error) {
 	// Custom Binder를 위한 echo 프레임워크의 Default Binder 생성
 	db := new(echo.DefaultBinder)
