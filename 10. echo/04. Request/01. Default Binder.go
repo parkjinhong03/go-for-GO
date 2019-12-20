@@ -1,3 +1,5 @@
+// Binder란, Request의 Content-Type에 따라 다른 Request Body를 Go에서 사용할 수 있는 타입으로 바꿔준다.
+// 뒤에서 다뤄볼 Custom Binder를 선언하지 않고 사용하는 Binder를 Default Binder라고 하는데, 이 Default Binder에 대해 알아보겠다.
 package main
 
 import (
@@ -17,6 +19,7 @@ func main() {
 	e.GET("/users", func(c echo.Context) (err error) {
 		u := new(User)
 		// Bind(interface i)메서드를 사용하여서 Request body의 데이터를 위에서 선언한 User 구조체로 바꿔준다.
+		// 여기서 호출한 Bind() 메서드는 따로 Binder를 지정하지 않았으므로 DefaultBinder의 Bind() 메서드가 호출될 것 이다.
 		if err = c.Bind(u); err!=nil {
 			return
 		}
