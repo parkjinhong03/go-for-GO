@@ -26,11 +26,11 @@ func (cb CustomBinder) Bind(i interface{}, c echo.Context) (err error) {
 	// 참고로 가능한 Content-Type 으로는 application/json, application/xml, application/x-www-form-urlencoded data 가 있다.
 	if err = db.Bind(i, c); err != echo.ErrUnsupportedMediaType {
 		fmt.Println("Default Binder로 디코딩할 수 있는 Content-Type의 요청입니다.")
-		return
+		return nil
 	}
 
 	fmt.Println("Default Binder로 디코딩할 수 없는 Content-Type의 요청입니다.")
-	return nil
+	return
 }
 
 func main() {
