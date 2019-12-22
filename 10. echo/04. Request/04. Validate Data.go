@@ -7,12 +7,13 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo"
 	"net/http"
+	"reflect"
 )
 
 type (
 	ValidateUser struct {
 		Name  string `json:"name" form:"name" query:"name"`
-		Email string `json:"email" form:"name" query:"name"`
+		Email string `json:"email" form:"email" query:"email"`
 	}
 
 	// validator 패키지의 Validate 타입의 멤버를 필드로 가지고 있는 CustomValidator 생성
@@ -24,8 +25,12 @@ type (
 // CustomValidator를 Echo#Validator 인터페이스로 사용하기 위해 유효성을 검사하는 Validate 메서드 정의
 func (cv *CustomValidator) Validate(i interface{}) error {
 	// 만약 ValidateUser 구조체에서 한 필드라도 빈 값이 있으면 Bad Request를 반환한다.
-	if i.(*ValidateUser).Name == "" || i.(*ValidateUser).Email == "" {
-		return echo.NewHTTPError(http.StatusBadRequest)
+	val := reflect.ValueOf(i)
+	for i:=0; i<val.Elem().NumField(); i++ {
+		name := val.Elem().Type().Field(i).Name
+		if reflect.Indirect(val).FieldByName(name).String() == "" {
+			return echo.NewHTTPError(http.StatusBadRequest)
+		}
 	}
 	return nil
 }
