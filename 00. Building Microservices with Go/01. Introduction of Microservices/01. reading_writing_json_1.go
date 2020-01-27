@@ -10,14 +10,14 @@ import (
 )
 
 // json으로 마샬링 하여 출력할 구조체를 정의한다
-type helloWorldResponse struct {
+type helloWorldResponse1 struct {
 	Message string
 }
 
 // Go의 구조체를 JSON으로 마샬링하여 출력하는 간단한 핸들러 정의
-func helloWorldHandler(w http.ResponseWriter, r *http.Request) {
+func helloWorldHandler1(w http.ResponseWriter, r *http.Request) {
 	// 위에서 정의한 구조체의 인스턴스를 만들고 원하는 메세지를 설정한다.
-	response := helloWorldResponse{Message: "HelloWorld"}
+	response := helloWorldResponse1{Message: "HelloWorld"}
 	// 리턴하기 전에 json.Marshal() 함수를 사용해 문자열로 인코딩한다.
 	// 참고로 json.Marshal() 함수가 반환하는 데이터의 자료형은 []byte 이다.
 	// 그 반환된 값을 string 자료형으로 타입 캐스팅을 하면 {"Message":"HelloWorld"}이 된다.
@@ -36,7 +36,7 @@ func main() {
 	port := 8080
 
 	// 위에서 정의한 핸들러 함수를 /helloworld 결로로 라우팅한다.
-	http.HandleFunc("/helloworld", helloWorldHandler)
+	http.HandleFunc("/helloworld", helloWorldHandler1)
 
 	// 서버 구동을 시작할 때 로그를 찍기 위하여 log.Printf() 함수 사용
 	log.Printf("Server starting on port %v\n", port)
