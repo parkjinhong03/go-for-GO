@@ -1,6 +1,6 @@
 // 이전까지 Go의 구조체를 json으로 인코딩하는 방법을 알아봤다면, 지금부터는 json을 Go의 구조체로 디코딩하는 방법을 알아볼 것 이다.
 
-package _1__reading_writing_json
+package main
 
 import (
 	"encoding/json"

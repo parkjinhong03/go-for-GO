@@ -1,6 +1,6 @@
 // 구조체를 이용하여 JSON으로 마샬링하여 출력하는 첫 번째 방법
 
-package _1__reading_writing_json
+package main
 
 import (
 	"encoding/json"
