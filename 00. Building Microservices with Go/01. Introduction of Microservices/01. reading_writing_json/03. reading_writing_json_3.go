@@ -3,7 +3,7 @@
 // 이러한 방식의 인코딩은 특별히 효율적으로 보이지도 않고 실제로도 효율적이지 않다.
 // 따라서 Go에서 지원하는 스트림에 직접 쓸 수 있는 인코더 및 디코더를 알아볼 것 이다.
 
-package main
+package _1__reading_writing_json
 
 import (
 	"encoding/json"

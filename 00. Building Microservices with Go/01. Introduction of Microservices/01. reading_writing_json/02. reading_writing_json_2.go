@@ -1,6 +1,6 @@
 // 구조체 필드의 속성을 이용하여 인코딩되는 JSON의 속성을 변경하는 코드
 
-package main
+package _1__reading_writing_json
 
 import (
 	"encoding/json"
