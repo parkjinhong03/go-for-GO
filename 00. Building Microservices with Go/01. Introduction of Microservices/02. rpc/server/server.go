@@ -23,7 +23,7 @@ func (h *HelloWorldHandler) HelloWorld(args *contract.HelloWorldRequest, reply *
 	return nil
 }
 
-func main() {
+func StartServer() {
 	helloWorld := &HelloWorldHandler{}
 	// rpc.Register() 함수를 이용해 위에서 선언한 인스턴스를 기본 RPC 서버에 등록한다.
 	// 이를 통해 클라이언트가 해당 메서드를 호출할 수 있게 한다.
