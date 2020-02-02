@@ -1,9 +1,9 @@
 package contract
 
 type HelloWorldRequest struct {
-	Name string `json:"name"`
+	Name string
 }
 
 type HelloWorldResponse struct {
-	Message string `json:"message"`
+	Message string
 }
