@@ -1,10 +1,10 @@
 // rpc(remote procedure call)란 네트워크로부터 떨어져 있는 컴퓨터에서 코드를 실행하는 방식이다
 // 이번 예제에서는 간단하게 표준 RPC 패키지늬 사용법을 살펴본다.
 
-package main
+package server
 
 import (
-	"./contract"
+	"../contract"
 	"fmt"
 	"github.com/labstack/gommon/log"
 	"net"
