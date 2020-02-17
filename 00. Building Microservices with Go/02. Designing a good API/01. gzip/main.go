@@ -15,8 +15,8 @@ import (
 func main() {
 	port := 8080
 
-	http.Handle("/helloWorld", middlewares.NewGzipMiddleWare(handlers.NewHelloWorldHandler()))
+	http.Handle("/helloWorld", middlewares.NewContextMiddleware(middlewares.NewGzipMiddleWare(handlers.NewHelloWorldHandler())))
 
-	log.Println(fmt.Sprintf("Server starting on port %v\n", port))
+	log.Print(fmt.Sprintf("Server starting on port %v\n", port))
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }
