@@ -1,4 +1,4 @@
-package main
+package _3__Introduction_of_Docker
 
 import (
 	"context"
