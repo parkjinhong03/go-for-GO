@@ -5,6 +5,8 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +29,20 @@ func TestSearchHandlerReturnsBadRequestWhenNoSearchCriteriaIsSent(t *testing.T) 
 
 	// 검색 기준을 요청에 포함시키지 않았는데도 응답 상태 코드가 BadRequest(400)이 아니라면 t.Errorf 함수를 호출해 테스트를 실패시킨다.
 	// 하지만 테스트 코드 실행중 t.Fail 함수가 호출되지 않는다면 해당 테스트는 성공으로 끝난다.
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected BadRequest got %v", response.Code)
+	}
+}
+
+// 해당 테스트는 쿼리에 빈 문자열이 있는 요청을 받았을때 400 BadRequest를 반환하는가를 검사한다.
+func TestSearchHandlerReturnsBadRequestWhenBlackSearchCriteriaIsSent(t *testing.T) {
+	handler := SearchHandler{}
+	data, _ := json.Marshal(searchRequest{})
+	request := httptest.NewRequest("GET", "/search", bytes.NewReader(data))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("Expected BadRequest got %v", response.Code)
 	}
