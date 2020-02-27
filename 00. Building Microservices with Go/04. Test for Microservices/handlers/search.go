@@ -18,7 +18,7 @@ func (h SearchHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	request := new(searchRequest)
 	err := decoder.Decode(request)
 
-	if err != nil {
+	if err != nil || len(request.Query) < 1 {
 		http.Error(rw, "Bad Request", http.StatusBadRequest)
 		return
 	}
