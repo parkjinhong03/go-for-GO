@@ -5,6 +5,9 @@
 package handlers
 
 import (
+	"../data"
+	"github.com/stretchr/testify/mock"
+
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -36,14 +39,27 @@ func TestSearchHandlerReturnsBadRequestWhenNoSearchCriteriaIsSent(t *testing.T) 
 
 // 해당 테스트는 쿼리에 빈 문자열이 있는 요청을 받았을때 400 BadRequest를 반환하는가를 검사한다.
 func TestSearchHandlerReturnsBadRequestWhenBlackSearchCriteriaIsSent(t *testing.T) {
-	handler := SearchHandler{}
-	data, _ := json.Marshal(searchRequest{})
-	request := httptest.NewRequest("GET", "/search", bytes.NewReader(data))
-	response := httptest.NewRecorder()
+	r, rw, handler := setupTest(searchRequest{})
 
-	handler.ServeHTTP(response, request)
+	handler.ServeHTTP(rw, r)
 
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected BadRequest got %v", response.Code)
+	if rw.Code != http.StatusBadRequest {
+		t.Errorf("Expected BadRequest got %v", rw.Code)
 	}
+}
+
+func setupTest(d interface{}) (*http.Request, *httptest.ResponseRecorder, SearchHandler) {
+	mockStore := &data.MockStore{}
+
+	h := SearchHandler{
+		DataStore: mockStore,
+	}
+	rw := httptest.NewRecorder()
+
+	if d == nil {
+		return httptest.NewRequest("GET", "/search", nil), rw, h
+	}
+
+	body, _ := json.Marshal(d)
+	return httptest.NewRequest("GET", "/search", bytes.NewReader(body)), rw, h
 }
