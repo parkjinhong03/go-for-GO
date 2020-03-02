@@ -33,3 +33,19 @@ func (m *MongoStore) Search(name string) []Kitten {
 
 	return result
 }
+
+// kittenserver 데이터베이스 있는 모든 kitten 콜렉션 정보를 삭제하는 메서드
+func (m *MongoStore) DeleteAllKittens() {
+	s := m.session.Clone()
+	defer s.Close()
+
+	_ = s.DB("kittenserver").C("kittens").DropCollection()
+}
+
+// kittenserver 데이터베이스에 매개변수로 넘겨 받은 객체를 kittens 콜렉션에 저장하는 메서드
+func (m *MongoStore) InsertKittens(kittens []Kitten) {
+	s := m.session.Clone()
+	defer s.Close()
+
+	_ = s.DB("kittenserver").C("kittens").Insert(kittens)
+}
