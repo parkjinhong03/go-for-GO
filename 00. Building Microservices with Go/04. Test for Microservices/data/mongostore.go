@@ -17,3 +17,19 @@ func NewMongoStore(connection string) (*MongoStore, error) {
 
 	return &MongoStore{session: session}, nil
 }
+
+func (m *MongoStore) Search(name string) []Kitten {
+	s := m.session.Clone()
+	defer s.Close()
+
+	var result []Kitten
+	// 아래 코드는 kittenserver 데이터베이스에서 kittens 컬렉션을 검색하여 반환한다.
+	c := s.DB("kittenserver").C("kittens")
+	// Find 메서드를 통해 원하는 값 검색 후 All 메서드를 이용해 결과값을 매개변수에 대입한다.
+	err := c.Find(Kitten{Name: name}).All(&result)
+	if err != nil {
+		return nil
+	}
+
+	return result
+}
