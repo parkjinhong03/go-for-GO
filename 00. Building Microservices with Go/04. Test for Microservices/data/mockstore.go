@@ -50,6 +50,7 @@ func (m *MockStore) Search(name string) []Kitten {
 		}
 	}
 
-	// 만약 []Kittens 타입이 아닌 객체를 반환하였을 경우, mock.On 메서드에서 
+	// 만약 []Kittens 타입이 아닌 다른 타입의 객체를 반환하였을 경우,
+	// mock.On 메서드에서 정의한 단정문과 맞지 않으므로 mock.AssertExpectations 메서드에 의해 테스트 에러가 발생된다.
 	return kittens
 }
