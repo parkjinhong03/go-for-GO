@@ -76,8 +76,16 @@ func FeatureContext(s *godog.Suite) {
 var store *data.MongoStore
 var server *exec.Cmd
 
+// 테스트 환경애서 실제로 요청을 보내기 위해 테스트 시작 전 서버를 구동시키는 함수
+func startServer() {
+	// exec.Command 함수를 이용하여 go run ../main.go를 실행하는 새 프로세스를 생성할 수 있다.
+	server := exec.Command("go", "run", "../main.go")
+	// 일반적으로 함수를 실행시키면 테스트가 대기 상태가 되기 때문에 꼭 고루틴을 이용하여 실행해야 한다.
+	go server.Run()
+	time.Sleep(3 * time.Second)
+}
 
-
+// 해당 함수는 테스트 관련 대부분 코드가 실행되기 전에, mongoDB와 연결하여 store 값을 저장해놓는 함수이다.
 func waitForDB() {
 	serverURL := "localhost"
 	if os.Getenv("DOCKER_IP") != "" {
