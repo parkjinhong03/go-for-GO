@@ -41,7 +41,7 @@ func TestSearchHandlerReturnsBadRequestWhenNoSearchCriteriaIsSent(t *testing.T) 
 
 // 해당 테스트는 쿼리에 빈 문자열이 있는 요청을 받았을때 400 Bad Request를 반환하는가를 검사한다.
 func TestSearchHandlerReturnsBadRequestWhenBlackSearchCriteriaIsSent(t *testing.T) {
-	r, rw, handler := setupTest(searchRequest{})
+	r, rw, handler := setupTest(SearchRequest{})
 
 	handler.ServeHTTP(rw, r)
 
@@ -52,7 +52,7 @@ func TestSearchHandlerReturnsBadRequestWhenBlackSearchCriteriaIsSent(t *testing.
 
 // 해당 테스트는 검색 기준을 옳바르게 넘겨주었을 때, 원하는 메서드가 호출되어 원하는 값을 반환하는지 테스트 하는 메서드이다.
 func TestSearchHandlerReturnsKittensWithValidQuery(t *testing.T) {
-	r, rw, handler := setupTest(searchRequest{Query: "Fat Freddy's Cat"})
+	r, rw, handler := setupTest(SearchRequest{Query: "Fat Freddy's Cat"})
 	// mock.On 메서드를 사용하여 일정 메서드가 호출되었는지 확인할 수 있다.
 	// 다음 코드는  "Fat Freddy Cat" 매개변수를 넘겨 Search 메서드를 호출할 경우, []data.Kitten 타입의 객체를 반환한다는 단정문이다.
 	mockStore.On("Search", "Fat Freddy's Cat").Return([]data.Kitten{})
@@ -61,7 +61,7 @@ func TestSearchHandlerReturnsKittensWithValidQuery(t *testing.T) {
 	// mock.AssertExpectations 메서드는 위에서 mock.On 메서드로 등록한 단정문대로 핸들러가 실행되지 않았을 경우 테스트 에러를 발생시킨다.
 	mockStore.AssertExpectations(t)
 
-	response := searchResponse{}
+	response := SearchResponse{}
 	_ = json.Unmarshal(rw.Body.Bytes(), &response)
 
 	// testify/assert 패키지의 Equal 함수는 2, 3번쨰로 넘긴 매개변수가 서로 다를 경우 테스트 에러를 발생시킨다.
