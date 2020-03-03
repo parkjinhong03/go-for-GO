@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"github.com/cucumber/godog"
 	"net/http"
+	"os"
 	"os/exec"
+	"time"
 )
 
 // 각각의 단계(함수)마다 연관성을 지키기위해 보존되어야 하는 데이터들은 전역변수로 선언한다.
@@ -74,7 +76,21 @@ func FeatureContext(s *godog.Suite) {
 var store *data.MongoStore
 var server *exec.Cmd
 
-func
+func waitForDB() {
+	serverURL := "localhost"
+	if os.Getenv("DOCKER_IP") != "" {
+		serverURL = os.Getenv("DOCKER_IP")
+	}
+
+	for i:=0; i<=10; i++ {
+		store, err = data.NewMongoStore(serverURL)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func clearDB() {
 	store.DeleteAllKittens()
