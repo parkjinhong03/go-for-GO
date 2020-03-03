@@ -1,25 +1,62 @@
+// search.feature 시나리오에서 각각의 단계마다 어떤 상테 또는 어떤 행동을 해야지 해당 단계를 통과할 수 있는지를 함수로 정의한 파일이다.
+// 함수의 시그니처는 func() error 이고, error로 nil을 반환하면 해당 단계는 통과되는 것 이다.
+// 시나리오와 함수는 godog.Suite.Step 메서드를 이용하여 연결시킬 수 있다.
+
 package features
 
-import "github.com/cucumber/godog"
+import (
+	"../handlers"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/cucumber/godog"
+	"net/http"
+)
+
+// 각각의 단계(함수)마다 연관성을 지키기위해 보존되어야 하는 데이터들은 전역변수로 선언한다.
+var criteria interface{}
+var response *http.Response
+var err error
 
 func iHaveNoSearchCriteria() error {
+	criteria = nil
 	return nil
 }
 
 func iCallTheSearchEndpointSearch() error {
-	return nil
+	var request []byte
+
+	if criteria != nil {
+		request = []byte(criteria.(string))
+	}
+
+	// http.Post 함수를 이용하여 물리적인 웹 서버에 요청을 보낼 수 있다.
+	response, err = http.Post("http://localhost:8080", "application/json", bytes.NewReader(request))
+	return err
 }
 
 func iShouldReceiveABadRequestMessage() error {
+	if response.StatusCode != http.StatusBadRequest {
+		return fmt.Errorf("should have received a bad response")
+	}
 	return nil
 }
 
 func iHaveValidSearchCriteria() error {
-	return godog.ErrPending
+	criteria = `{"query": "Fat Freddy's Cat"}`
+	return nil
 }
 
 func iShouldReceiveAListOfKittens() error {
-	return godog.ErrPending
+	var body handlers.SearchResponse
+	decoder := json.NewDecoder(response.Body)
+	err := decoder.Decode(&body)
+
+	if len(body.Kittens) <= 1 || err != nil {
+		return fmt.Errorf("shoud have receive a list of kittens")
+	}
+
+	return nil
 }
 
 func FeatureContext(s *godog.Suite) {
