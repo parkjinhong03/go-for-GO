@@ -12,11 +12,11 @@ type SearchHandler struct {
 	DataStore data.Store
 }
 
-type searchRequest struct {
+type SearchRequest struct {
 	Query string `json:"query"`
 }
 
-type searchResponse struct {
+type SearchResponse struct {
 	Kittens []data.Kitten `json:"kittens"`
 }
 
@@ -24,7 +24,7 @@ func (h SearchHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
-	request := new(searchRequest)
+	request := new(SearchRequest)
 	err := decoder.Decode(request)
 
 	if err != nil || len(request.Query) < 1 {
@@ -35,5 +35,5 @@ func (h SearchHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	kittens := h.DataStore.Search(request.Query)
 
 	encoder := json.NewEncoder(rw)
-	encoder.Encode(searchResponse{Kittens: kittens})
+	encoder.Encode(SearchResponse{Kittens: kittens})
 }
