@@ -76,6 +76,8 @@ func FeatureContext(s *godog.Suite) {
 var store *data.MongoStore
 var server *exec.Cmd
 
+
+
 func waitForDB() {
 	serverURL := "localhost"
 	if os.Getenv("DOCKER_IP") != "" {
