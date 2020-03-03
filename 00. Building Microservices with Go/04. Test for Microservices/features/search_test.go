@@ -11,43 +11,54 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/gherkin"
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"os/exec"
 	"time"
 )
 
-// 각각의 단계(함수)마다 연관성을 지키기위해 보존되어야 하는 데이터들은 전역변수로 선언한다.
-var criteria interface{}
-var response *http.Response
-var err error
+// godog.Suite 객체에 정의된 메서드의 서명을 마음대로 바꿀 수 없으므로, 해당 메서드에서 다른 객체에 접근하기 위해선 접근할 객체들을 전역변수로 선언해야 한다.
+// 또힌 각각의 단계(함수)마다 연관성을 지키기위해 보존되어야 하는 데이터들은 전역변수로 선언한다.
+var (
+	response *httptest.ResponseRecorder
+ 	criteria handlers.SearchRequest
+ 	handler handlers.SearchHandler
+ 	store *data.MongoStore
+	err error
+)
 
 func iHaveNoSearchCriteria() error {
-	criteria = nil
+	criteria = handlers.SearchRequest{}
 	return nil
 }
 
 func iCallTheSearchEndpointSearch() error {
-	var request []byte
+	response = httptest.NewRecorder()
+	var request *http.Request
 
-	if criteria != nil {
-		request = []byte(criteria.(string))
+	if criteria.Query == "" {
+		request = httptest.NewRequest("get", "/", nil)
+	} else {
+		body, _ := json.Marshal(criteria)
+		request = httptest.NewRequest("get", "/", bytes.NewReader(body))
 	}
 
-	// http.Post 함수를 이용하여 물리적인 웹 서버에 요청을 보낼 수 있다.
-	response, err = http.Post("http://localhost:8080", "application/json", bytes.NewReader(request))
-	return err
+	handler.ServeHTTP(response, request)
+	return nil
 }
 
 func iShouldReceiveABadRequestMessage() error {
-	if response.StatusCode != http.StatusBadRequest {
+	if response.Code != http.StatusBadRequest {
 		return fmt.Errorf("should have received a bad response")
 	}
 	return nil
 }
 
 func iHaveValidSearchCriteria() error {
-	criteria = `{"query": "Fat Freddy's Cat"}`
+	criteria = handlers.SearchRequest{
+		Query: "Fat Freddy's Cat",
+	}
 	return nil
 }
 
@@ -56,8 +67,8 @@ func iShouldReceiveAListOfKittens() error {
 	decoder := json.NewDecoder(response.Body)
 	err := decoder.Decode(&body)
 
-	if len(body.Kittens) <= 1 || err != nil {
-		return fmt.Errorf("shoud have receive a list of kittens")
+	if len(body.Kittens) < 1 || err != nil {
+		return fmt.Errorf("should have receive a list of kittens")
 	}
 
 	return nil
@@ -70,23 +81,17 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I should receive a bad request message \(잘못된 요청이라는 메세지를 받는다\)$`, iShouldReceiveABadRequestMessage)
 	s.Step(`^I have valid search criteria \(유효한 검색 기준이 있다\)$`, iHaveValidSearchCriteria)
 	s.Step(`^I should receive a list of kittens \(새끼 고양이의 목록을 받는다\)$`, iShouldReceiveAListOfKittens)
+
+	// Feature(전체 시나리오)에 대한 테스트를 실행시키기 전에 실행할 함수를 등록하는 함수이다.
+	s.BeforeFeature(func(*gherkin.Feature) {
+		setHandler()
+		clearDB()
+		setupDB()
+	})
 }
 
-// godog.Suite 객체에 정의된 메서드의 서명을 마음대로 바꿀 수 없으므로, 해당 메서드에서 다른 객체에 접근하기 위해선 접근할 객체들을 전역변수로 선언해야 한다.
-var store *data.MongoStore
-var server *exec.Cmd
-
-// 테스트 환경애서 실제로 요청을 보내기 위해 테스트 시작 전 서버를 구동시키는 함수
-func startServer() {
-	// exec.Command 함수를 이용하여 go run ../main.go를 실행하는 새 프로세스를 생성할 수 있다.
-	server := exec.Command("go", "run", "../main.go")
-	// 일반적으로 함수를 실행시키면 테스트가 대기 상태가 되기 때문에 꼭 고루틴을 이용하여 실행해야 한다.
-	go server.Run()
-	time.Sleep(3 * time.Second)
-}
-
-// 해당 함수는 테스트 관련 대부분 코드가 실행되기 전에, mongoDB와 연결하여 store 값을 저장해놓는 함수이다.
-func waitForDB() {
+// 테스트 환경애서 모의 객체로 ServeHTTP를 실행하기 전에 런타임 에러가 나지 않게 handler와 store의 값을 채워주는 함수
+func setHandler() {
 	serverURL := "localhost"
 	if os.Getenv("DOCKER_IP") != "" {
 		serverURL = os.Getenv("DOCKER_IP")
@@ -95,11 +100,16 @@ func waitForDB() {
 	for i:=0; i<=10; i++ {
 		store, err = data.NewMongoStore(serverURL)
 		if err == nil {
-			break
+			handler = handlers.SearchHandler{
+				DataStore: store,
+			}
+			return
 		}
 
 		time.Sleep(1 * time.Second)
 	}
+
+	panic("Can't connect session to mongoDB server")
 }
 
 func clearDB() {
@@ -112,7 +122,7 @@ func setupDB() {
 			{
 				Id:     1,
 				Name:   "Felix",
-				Weight: 12.3,
+				Weight: 12.0,
 			}, {
 				Id:     2,
 				Name:   "Fat Freddy's Cat",
