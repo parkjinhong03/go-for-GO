@@ -1,6 +1,9 @@
 package data
 
-import "gopkg.in/mgo.v2"
+import (
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
 
 // 모의 객체가 아닌, 실제 데이터 저장소인 MongoDB를 DataStore 인터페이스로 사용하기 위한 구조체 정의
 type MongoStore struct {
@@ -26,7 +29,7 @@ func (m *MongoStore) Search(name string) []Kitten {
 	// 아래 코드는 kittenserver 데이터베이스에서 kittens 컬렉션을 검색하여 반환한다.
 	c := s.DB("kittenserver").C("kittens")
 	// Find 메서드를 통해 원하는 값 검색 후 All 메서드를 이용해 결과값을 매개변수에 대입한다.
-	err := c.Find(Kitten{Name: name}).All(&result)
+	err := c.Find(bson.M{"name": name}).All(&result)
 	if err != nil {
 		return nil
 	}
@@ -47,5 +50,7 @@ func (m *MongoStore) InsertKittens(kittens []Kitten) {
 	s := m.session.Clone()
 	defer s.Close()
 
-	_ = s.DB("kittenserver").C("kittens").Insert(kittens)
+	for _, k := range kittens {
+		_ = s.DB("kittenserver").C("kittens").Insert(k)
+	}
 }
