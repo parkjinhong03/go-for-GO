@@ -5,12 +5,14 @@
 package features
 
 import (
+	"../data"
 	"../handlers"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/cucumber/godog"
 	"net/http"
+	"os/exec"
 )
 
 // 각각의 단계(함수)마다 연관성을 지키기위해 보존되어야 하는 데이터들은 전역변수로 선언한다.
@@ -60,9 +62,39 @@ func iShouldReceiveAListOfKittens() error {
 }
 
 func FeatureContext(s *godog.Suite) {
+	// godog.Suite.Step 메서드를 이용하여 시나리오의 각 단계와 위에서 만든 함수를 연결할 수 있다.
 	s.Step(`^I have no search criteria \(검색 기준이 없다\)$`, iHaveNoSearchCriteria)
 	s.Step(`^I call the search endpoint \(search 엔드 포인트를 호출한다\)$`, iCallTheSearchEndpointSearch)
 	s.Step(`^I should receive a bad request message \(잘못된 요청이라는 메세지를 받는다\)$`, iShouldReceiveABadRequestMessage)
 	s.Step(`^I have valid search criteria \(유효한 검색 기준이 있다\)$`, iHaveValidSearchCriteria)
 	s.Step(`^I should receive a list of kittens \(새끼 고양이의 목록을 받는다\)$`, iShouldReceiveAListOfKittens)
+}
+
+// godog.Suite 객체에 정의된 메서드의 서명을 마음대로 바꿀 수 없으므로, 해당 메서드에서 다른 객체에 접근하기 위해선 접근할 객체들을 전역변수로 선언해야 한다.
+var store *data.MongoStore
+var server *exec.Cmd
+
+func
+
+func clearDB() {
+	store.DeleteAllKittens()
+}
+
+func setupDB() {
+	store.InsertKittens(
+		[]data.Kitten{
+			{
+				Id:     1,
+				Name:   "Felix",
+				Weight: 12.3,
+			}, {
+				Id:     2,
+				Name:   "Fat Freddy's Cat",
+				Weight: 20.0,
+			}, {
+				Id:     3,
+				Name:   "Garfield",
+				Weight: 35.0,
+			},
+		})
 }
