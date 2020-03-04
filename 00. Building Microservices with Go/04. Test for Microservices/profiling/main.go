@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/gommon/log"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/pprof"
 	"syscall"
 )
@@ -54,5 +55,22 @@ func main() {
 	go func() {
 		// 위에서 signal.Notify 함수로 등록한 특정 이벤트(시그널)가 발생되어 해당 이벤트가 sigs 채널로 송신될 때 까지 대기한다.
 		<- sigs
+		fmt.Println("Program Finished")
+		if *memoryprofile != "" {
+			// cpuprofile과 같이 memoryprofile도 플래그 값이 존재한다면 힙 프로파일링을 하기 위해 파일을 생성한다.
+			f, err := os.Create(*memoryprofile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// 아래의 두 함수를 이용하여 힙 할당에 대한 프로파일을 pprof.WriteHeapProfile 함수의 매개변수로 넘긴 io.Writer에 출력할 수 있다.
+			runtime.GC()
+			pprof.WriteHeapProfile(f)
+			defer f.Close()
+		}
+		if *cpuprofile != "" {
+			pprof.StopCPUProfile()
+		}
+
+		os.Exit(0)
 	}()
 }
