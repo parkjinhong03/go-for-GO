@@ -9,14 +9,17 @@ package main
 
 import (
 	"../data"
+	"../handlers"
 	"flag"
 	"fmt"
 	"github.com/labstack/gommon/log"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
 	"syscall"
+	"time"
 )
 
 // flag.String 함수를 이용하여 파싱할 커맨드라인 플래그를 등록할 수 있다.
@@ -24,7 +27,6 @@ import (
 // 하지만 만약 사용자가 cpuprofile 플래그를 입력하지 않으면 cpuprofile 변수에는 두 번째 매개변수로 넘긴 ""이 대입된다.
 var cpuprofile = flag.String("cpuprofile", "", "Write cpu profile to file")
 var memoryprofile = flag.String("memoryprofile", "", "Write memory profile to file")
-var store *data.MongoStore
 
 
 func main() {
@@ -57,6 +59,7 @@ func main() {
 		<- sigs
 		fmt.Println("Program Finished")
 		if *memoryprofile != "" {
+			fmt.Println("Exiting with MEMORY profile")
 			// cpuprofile과 같이 memoryprofile도 플래그 값이 존재한다면 힙 프로파일링을 하기 위해 파일을 생성한다.
 			f, err := os.Create(*memoryprofile)
 			if err != nil {
@@ -73,4 +76,50 @@ func main() {
 
 		os.Exit(0)
 	}()
+
+	store := waitForDB()
+	clearDB(store)
+	setupDB(store)
+
+	handler := handlers.SearchHandler{DataStore: store}
+	log.Fatal(http.ListenAndServe(":8008", &handler))
+
+	fmt.Println("Exit")
+}
+
+func waitForDB() *data.MongoStore {
+	for i:=0; i<=10; i++ {
+		store, err := data.NewMongoStore("localhost")
+		if err == nil {
+			return store
+		}
+
+		fmt.Println("Waiting for DB Connection")
+		time.Sleep(1 * time.Second)
+	}
+
+	return nil
+}
+
+func clearDB(store *data.MongoStore) {
+	store.DeleteAllKittens()
+}
+
+func setupDB(store *data.MongoStore) {
+	store.InsertKittens(
+		[]data.Kitten{
+			{
+				Id:     1,
+				Name:   "Felix",
+				Weight: 12.0,
+			}, {
+				Id:     2,
+				Name:   "Fat Freddy's Cat",
+				Weight: 20.0,
+			}, {
+				Id:     3,
+				Name:   "Garfield",
+				Weight: 35.0,
+			},
+		})
 }
