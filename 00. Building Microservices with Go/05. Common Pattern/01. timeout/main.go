@@ -17,7 +17,9 @@ func main() {
 	flag.Parse()
 
 	if *timeout == "on" {
+		// deadline.New 함수를 이용하여 원하는 함수가 넘긴 매개변수 시간 안에 끝나지 않으면 타임 아웃시키는 객체를 생성할 수 있다.
 		dl := deadline.New(1 * time.Second)
+		// 위에서 만든 객체의 Run 메서드를 이용하여 
 		err = dl.Run(func(stopper <-chan struct{}) error {
 			slowFunction()
 			return nil
