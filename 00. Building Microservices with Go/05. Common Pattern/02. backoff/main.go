@@ -14,13 +14,13 @@ func main() {
 	var n = 1
 
 	// retirer.New 함수를 이용하여 백 오프를 실행시킬 수 있는 객체를 생성할 수 있다.
-	// 첫 번째 매개 변수는 time.Duration의 슬라이스로, 인덱스의 갯수만큼 시도하고 각각의 값만큼 시간을 대기한다.
+	// 첫 번째 매개 변수는 time.Duration의 슬라이스로, 인덱스의 갯수만큼 재시도하고 각각의 값만큼 시간을 대기한다.
 	// 두 번째 매개 변수는 분류자(Classifier)로, 재시도가 허용되는 에러 타입 또는 즉시 실패시키는 에러 타입을 제어할 수 있다.
 	r := retrier.New(retrier.ConstantBackoff(3, 1 * time.Second), nil)
-	//
+	// 위에서 만든 객체의 Run 메서드를 이용하여 백 오프를 실행시킬 수 있다.
+	// 매개변수로 넘긴 함수가 한번이라도 성공(nil 반환)하면 nil을 반환하고, 위에서 정한 횟수만큼 재시도해도 실패한다면 해당 함수가 반환한 에러를 반환한다.
 	err := r.Run(func() error {
 		fmt.Printf("Attept: %d\n", n)
-		// 이 사이에 실제로 실행시키고 싶은 기능을 구현하는 코드를 작성한다.
 		n++
 		return fmt.Errorf("failed")
 	})
