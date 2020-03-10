@@ -114,7 +114,6 @@ func (lbh *LoadBalancingHandler) ServeHTTP(rw http.ResponseWriter, r *http.Reque
 		http.Error(rw, err.Error(), http.StatusTooManyRequests)
 		return
 	}
-	fmt.Println(service.Port, service.CurConnect)
 
 	resp, err := service.HTTPRequest(r)
 	if err != nil {
@@ -138,5 +137,6 @@ func main() {
 	}
 
 	http.Handle("/search/", http.StripPrefix("/search", &handler))
+	http.Handle("/search", http.StripPrefix("/search", &handler))
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
