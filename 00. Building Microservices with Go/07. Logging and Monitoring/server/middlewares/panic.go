@@ -17,13 +17,13 @@ type panicMiddleware struct {
 
 func (pm *panicMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	defer func() {
-		if err := recover(); err != nil { pm.handlingPanic(rw, r, err.(error))}
+		if err := recover(); err != nil { pm.handlingPanic(rw, r, err) }
 	}()
 
 	pm.next.ServeHTTP(rw, r)
 }
 
-func (pm *panicMiddleware) handlingPanic(rw http.ResponseWriter, r *http.Request, err error) {
+func (pm *panicMiddleware) handlingPanic(rw http.ResponseWriter, r *http.Request, err interface{}) {
 	pm.logger.WithFields(logrus.Fields{
 		"group": "middleware",
 		"segment": "panic",
