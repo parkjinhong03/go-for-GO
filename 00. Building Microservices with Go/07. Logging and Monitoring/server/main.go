@@ -1,12 +1,24 @@
 // 이번 07장에서는 측정 지표(metric)를 이용하여 유용한 로깅 및 모니터링을 하는 방법에 대해 알아볼 것 이다.
 // logrus-logstash-hook 그리고 statsd 패키지를 이용하여 로깅과 모니터링을 구현할 것 이다.
+// 참고로 로깅을 할 때, 명명 규칙(naming convention)을 정의하는 것은 매우 중요하다.
+// 이번 예제에서는, 아주 대중적이고 가독성 있는 점 표기법을 이용하여 서비스의 이름을 나눴다.
+// - 형식: environment.host.service.group.segment.outcome
+// - environment: 운영이나 스테이징과 같은 작업 환경
+// - host: 어플리케이션 서비스를 실행하는 서버의 호스트 이름
+// - service: 서비스의 이름
+// - group: 최상위 그룹으로, API인 경우 핸들러일 수 있음
+// - segment: 그룹의 하위 레벨 정보, 일반적으로 API인 경우 핸들러의 이름
+// - outcome: 동적의 결과를 나타내며 API인 경우 HTTP 상태 코드를 사용할 수 있음
+// ex) production.172.30.1.24.helloWorldServer.handlers.helloWorld.ok
 
 package main
 
 import (
+	"building-microservices-with-go.com/logging/middlewares"
 	"errors"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
