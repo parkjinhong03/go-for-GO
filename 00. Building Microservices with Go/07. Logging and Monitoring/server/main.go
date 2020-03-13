@@ -14,8 +14,10 @@
 package main
 
 import (
+	"building-microservices-with-go.com/logging/handlers"
 	"building-microservices-with-go.com/logging/middlewares"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -27,10 +29,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const port = 8080
+const port = 8091
 
 func main() {
-	statsd, err := createStatsDClient(os.Getenv("STATSD"))
+	statsD, err := createStatsDClient(os.Getenv("STATSD"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,12 +41,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	setupHandlers(statsD, logger)
+
+	log.Printf("Server starting on port %v\n", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+
+}
+
+func setupHandlers(statsD *statsd.Client, logger *logrus.Logger) {
+	helloWorldHandler := middlewares.NewValidationMiddleware(
+		statsD,
+		logger,
+		handlers.NewHelloWorldHandler(statsD, logger),
+	)
+
+	bangHandler := middlewares.NewPanicMiddleware(
+		statsD,
+		logger,
+		handlers.NewBangHandler(),
+	)
+
+	http.Handle("/helloworld", middlewares.NewCorrelationMiddleware(helloWorldHandler))
+	http.Handle("/bang", middlewares.NewCorrelationMiddleware(bangHandler))
 }
 
 // statsD 서버의 주소를 매개변수로 받아 해당 서버의 클라이언트를 생성하여 반환하는 함수이다.
 func createStatsDClient(address string) (*statsd.Client, error) {
 	if address == "" {
-		return &statsd.Client{}, errors.New("please set environment variable 'address'")
+		return &statsd.Client{}, errors.New("please set environment variable 'STATSD'")
 	}
 
 	// statsd.New 함수를 이용하여 서버 주소를 전달해 클라이언트를 생성할 수 있다.
@@ -53,6 +78,10 @@ func createStatsDClient(address string) (*statsd.Client, error) {
 
 // logrus와 logrustash 패키지를 이용하여 logrustash를 포함하고 있는 로거를 생성하여 반환하는 함수이다.
 func createLogger(address string) (*logrus.Logger, error) {
+	if address == "" {
+		return &logrus.Logger{}, errors.New("please set environment variable 'LOGSTASH'")
+	}
+
 	// logrus.New 함수를 이용하여 기본값이 지정되어있는 로거 객채를 얻을 수 있다.
 	l := logrus.New()
 	// os.Hostname 함수를 이용하여 서비스 이름의 host 부분에 명시할 문자열을 얻을 수 있다.
