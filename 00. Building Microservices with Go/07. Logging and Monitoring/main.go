@@ -76,7 +76,7 @@ func createLogger(address string) (*logrus.Logger, error) {
 		// 만약 연결에 성공하지 못했다면, 로그를 찍고 1초 후에 다시 시도한다.
 		if err != nil {
 			log.Println("Unable to connect to logstash, retrying")
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 
