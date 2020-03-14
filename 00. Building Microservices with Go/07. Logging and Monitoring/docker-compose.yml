@@ -1,0 +1,43 @@
+version: '2'
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - discovery.type=single-node
+  logstash:
+    container_name: logstash
+    image: logstash:7.6.1
+    ports:
+      - 5000:5000
+    volumes:
+      - ./logstash.conf:/config-dir/logstash.conf
+    command: logstash -f /config-dir/logstash.conf
+    depends_on:
+      - elasticsearch
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - logstash
+      - elasticsearch
+  helloworldserver:
+    container_name: helloworldserver
+    build: ./
+    image: helloworldserver:latest
+    command: sh -c './helloworldserver'
+    ports:
+      - 8091:8091
+    environment:
+      - "LOGSTASH=logstash:5000"
+    depends_on:
+      - logstash
+      - elasticsearch
+      - kibana
