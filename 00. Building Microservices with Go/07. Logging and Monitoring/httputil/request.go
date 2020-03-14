@@ -25,7 +25,6 @@ type serializedHeader struct {
 type serializedRequest struct {
 	Method string
 	Host string
-	Query string
 	Path string
 	Headers []serializedHeader
 }
@@ -41,7 +40,6 @@ func (rs *RequestSerializer) serializeRequest() serializedRequest {
 	return serializedRequest{
 		Method:  rs.Method,
 		Host:    rs.Host,
-		Query:   rs.URL.RawQuery,
 		Path:    rs.URL.Path,
 		Headers: headers,
 	}

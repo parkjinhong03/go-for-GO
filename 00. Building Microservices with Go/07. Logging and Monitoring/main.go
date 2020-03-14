@@ -24,7 +24,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/alexcesaro/statsd"
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/sirupsen/logrus"
 )
@@ -32,32 +31,24 @@ import (
 const port = 8091
 
 func main() {
-	statsD, err := createStatsDClient(os.Getenv("STATSD"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	logger, err := createLogger(os.Getenv("LOGSTASH"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	setupHandlers(statsD, logger)
+	setupHandlers(logger)
 
 	log.Printf("Server starting on port %v\n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
-
 }
 
-func setupHandlers(statsD *statsd.Client, logger *logrus.Logger) {
+func setupHandlers(logger *logrus.Logger) {
 	helloWorldHandler := middlewares.NewValidationMiddleware(
-		statsD,
 		logger,
-		handlers.NewHelloWorldHandler(statsD, logger),
+		handlers.NewHelloWorldHandler(logger),
 	)
 
 	bangHandler := middlewares.NewPanicMiddleware(
-		statsD,
 		logger,
 		handlers.NewBangHandler(),
 	)
@@ -66,15 +57,6 @@ func setupHandlers(statsD *statsd.Client, logger *logrus.Logger) {
 	http.Handle("/bang", middlewares.NewCorrelationMiddleware(bangHandler))
 }
 
-// statsD 서버의 주소를 매개변수로 받아 해당 서버의 클라이언트를 생성하여 반환하는 함수이다.
-func createStatsDClient(address string) (*statsd.Client, error) {
-	if address == "" {
-		return &statsd.Client{}, errors.New("please set environment variable 'STATSD'")
-	}
-
-	// statsd.New 함수를 이용하여 서버 주소를 전달해 클라이언트를 생성할 수 있다.
-	return statsd.New(statsd.Address(address))
-}
 
 // logrus와 logrustash 패키지를 이용하여 logrustash를 포함하고 있는 로거를 생성하여 반환하는 함수이다.
 func createLogger(address string) (*logrus.Logger, error) {

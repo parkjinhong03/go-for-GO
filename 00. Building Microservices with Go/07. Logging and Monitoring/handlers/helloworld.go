@@ -17,7 +17,6 @@ type helloWorldHandler struct {
 }
 
 func (h *helloWorldHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	timing := h.statsD.NewTiming()
 	var status int
 
 	name := r.Context().Value("name").(string)
@@ -26,15 +25,13 @@ func (h *helloWorldHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	err := encoder.Encode(response)
 	if err != nil {
-		h.statsD.Increment(helloWorldFailed)
 		status = http.StatusInternalServerError
 		rw.WriteHeader(http.StatusInternalServerError)
 	} else {
-		h.statsD.Increment(helloWorldSuccess)
 		status = http.StatusOK
 	}
 
-	message := httputil.RequestSerializer{Request: r}
+	request := httputil.RequestSerializer{Request: r}
 	entry := h.logger.WithFields(logrus.Fields{
 		"group": "handler",
 		"segment": "helloWorld",
@@ -42,19 +39,16 @@ func (h *helloWorldHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		entry.Fatal(message.ToJSON())
+		entry.Fatal(request.ToJSON())
 	} else {
-		entry.Info(message.ToJSON())
+		entry.Info(request.ToJSON())
 	}
 
 	time.Sleep(time.Duration(rand.Intn(200)) * time.Millisecond)
-
-	timing.Send(helloWorldTiming)
 }
 
-func NewHelloWorldHandler(statsD *statsd.Client, logger *logrus.Logger) *helloWorldHandler {
+func NewHelloWorldHandler(logger *logrus.Logger) *helloWorldHandler {
 	return &helloWorldHandler{
-		statsD: statsD,
 		logger: logger,
 	}
 }
