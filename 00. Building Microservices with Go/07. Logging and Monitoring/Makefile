@@ -6,6 +6,6 @@ buildserver:
 runlogging:
 	docker-compose -f ./docker-compose.yml up --build -d
 
-runserver: buildserver
+runserver:
 	echo "Run API"
 	LOGSTASH=localhost:5000 go run main.go
