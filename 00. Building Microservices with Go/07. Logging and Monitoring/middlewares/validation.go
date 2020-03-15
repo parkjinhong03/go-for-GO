@@ -26,12 +26,13 @@ func (vm *ValidationMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Reques
 	// 만약 디코딩에 실패하였다면(Request Body의 유효성 인정X) 아래 구문을 실행시킨다.
 	err := decoder.Decode(&request)
 	if err != nil {
-		request := httputil.RequestSerializer{Request: r}
 		vm.logger.WithFields(logrus.Fields{
 			"group": "middleware",
 			"segment": "validation",
 			"outcome": http.StatusBadRequest,
-		}).Info(request.ToJSON())
+		}).WithFields(
+			httputil.NewRequestSerializer(r).ToLogrusFields(),
+		).Info()
 
 		http.Error(rw, "Bad Request", http.StatusBadRequest)
 		return

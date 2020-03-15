@@ -31,17 +31,16 @@ func (h *helloWorldHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 
-	request := httputil.RequestSerializer{Request: r}
 	entry := h.logger.WithFields(logrus.Fields{
 		"group": "handler",
 		"segment": "helloWorld",
 		"outcome": status,
-	})
+	}).WithFields(httputil.NewRequestSerializer(r).ToLogrusFields())
 
 	if err != nil {
-		entry.Fatal(request.ToJSON())
+		entry.Fatal()
 	} else {
-		entry.Info(request.ToJSON())
+		entry.Info()
 	}
 
 	time.Sleep(time.Duration(rand.Intn(200)) * time.Millisecond)

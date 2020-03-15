@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"building-microservices-with-go.com/logging/httputil"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -25,10 +26,10 @@ func (pm *panicMiddleware) handlingPanic(rw http.ResponseWriter, r *http.Request
 	pm.logger.WithFields(logrus.Fields{
 		"group": "middleware",
 		"segment": "panic",
-		"method": r.Method,
-		"path": r.URL.Path,
-		"query": r.URL.RawQuery,
-	}).Error(fmt.Sprintf("Error: %v\n%s", err, debug.Stack()))
+		"outcome": http.StatusInternalServerError,
+	}).WithFields(
+		httputil.NewRequestSerializer(r).ToLogrusFields(),
+	).Error(fmt.Sprintf("Error: %v\n%s", err, debug.Stack()))
 
 	rw.WriteHeader(http.StatusInternalServerError)
 }
