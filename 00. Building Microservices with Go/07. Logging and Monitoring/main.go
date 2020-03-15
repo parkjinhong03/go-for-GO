@@ -66,8 +66,6 @@ func createLogger(address string) (*logrus.Logger, error) {
 
 	// logrus.New 함수를 이용하여 기본값이 지정되어있는 로거 객채를 얻을 수 있다.
 	l := logrus.New()
-	// os.Hostname 함수를 이용하여 서비스 이름의 host 부분에 명시할 문자열을 얻을 수 있다.
-	hostname, _ := os.Hostname()
 
 	for i:=0; i<10; i++ {
 		// 매개변수로 받은 주소에 tcp 프로토콜을 이용하여 연결을 시도한다.
@@ -86,7 +84,10 @@ func createLogger(address string) (*logrus.Logger, error) {
 			conn,
 			// 그리고 로그 메시지에 기본적으로 {"hostname": os.Hostname()}을 추가하도록 설정한다.
 			logrustash.DefaultFormatter(
-				logrus.Fields{"hostname": hostname},
+				logrus.Fields{
+					"environment": "development",
+					"service": "helloWorldServer",
+				},
 			),
 		)
 
