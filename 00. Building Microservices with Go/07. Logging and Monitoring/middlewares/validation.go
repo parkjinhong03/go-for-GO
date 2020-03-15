@@ -5,8 +5,10 @@ import (
 	"building-microservices-with-go.com/logging/httputil"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"strings"
 )
 
 // ValidationMiddleware는 핸들러를 실행시키기 전에, 요청의 유효성을 검사하여 그 결과에 따라 처리를 하는 미들웨어이다.
@@ -32,7 +34,7 @@ func (vm *ValidationMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Reques
 			"outcome": http.StatusBadRequest,
 		}).WithFields(
 			httputil.NewRequestSerializer(r).ToLogrusFields(),
-		).Info()
+		).Info(strings.Join([]string{r.Method, r.URL.Path, fmt.Sprint(http.StatusBadRequest), validationFailed}, " "))
 
 		http.Error(rw, "Bad Request", http.StatusBadRequest)
 		return

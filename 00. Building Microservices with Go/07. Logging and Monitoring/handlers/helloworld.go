@@ -4,10 +4,12 @@ import (
 	"building-microservices-with-go.com/logging/entities"
 	"building-microservices-with-go.com/logging/httputil"
 	"encoding/json"
+	"fmt"
 	"github.com/alexcesaro/statsd"
 	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -38,9 +40,9 @@ func (h *helloWorldHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}).WithFields(httputil.NewRequestSerializer(r).ToLogrusFields())
 
 	if err != nil {
-		entry.Fatal()
+		entry.Fatal(strings.Join([]string{r.Method, r.URL.Path, fmt.Sprint(status), helloWorldFailed}, " "))
 	} else {
-		entry.Info()
+		entry.Info(strings.Join([]string{r.Method, r.URL.Path, fmt.Sprint(status), helloWorldSuccess}, " "))
 	}
 
 	time.Sleep(time.Duration(rand.Intn(200)) * time.Millisecond)
