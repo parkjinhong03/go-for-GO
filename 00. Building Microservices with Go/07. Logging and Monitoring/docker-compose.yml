@@ -8,6 +8,10 @@ services:
       - 9300:9300
     environment:
       - discovery.type=single-node
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    networks:
+      - logging
   logstash:
     container_name: logstash
     image: logstash:7.6.1
@@ -18,6 +22,8 @@ services:
     command: logstash -f /config-dir/logstash.conf
     depends_on:
       - elasticsearch
+    networks:
+      - logging
   kibana:
     container_name: kibana
     image: docker.elastic.co/kibana/kibana:7.4.2
@@ -26,18 +32,14 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
-      - logstash
       - elasticsearch
-  helloworldserver:
-    container_name: helloworldserver
-    build: ./
-    image: helloworldserver:latest
-    command: sh -c './helloworldserver'
-    ports:
-      - 8091:8091
-    environment:
-      - "LOGSTASH=logstash:5000"
-    depends_on:
-      - logstash
-      - elasticsearch
-      - kibana
+    networks:
+      - logging
+
+volumes:
+  elasticsearch:
+    driver: local
+
+networks:
+  logging:
+    driver: bridge
