@@ -70,6 +70,7 @@ func createLogger(address string) (*logrus.Logger, error) {
 	for i:=0; i<10; i++ {
 		// 매개변수로 받은 주소에 tcp 프로토콜을 이용하여 연결을 시도한다.
 		conn, err := net.Dial("tcp", address)
+		host, _ := os.Hostname()
 
 		// 만약 연결에 성공하지 못했다면, 로그를 찍고 1초 후에 다시 시도한다.
 		if err != nil {
@@ -86,6 +87,7 @@ func createLogger(address string) (*logrus.Logger, error) {
 			logrustash.DefaultFormatter(
 				logrus.Fields{
 					"environment": "development",
+					"host": host,
 					"service": "helloWorldServer",
 				},
 			),

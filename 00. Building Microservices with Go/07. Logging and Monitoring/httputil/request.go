@@ -16,7 +16,7 @@ func (rs *requestSerializer) ToLogrusFields() logrus.Fields {
 	return logrus.Fields{
 		"method": rs.Method,
 		"path": rs.URL.Path,
-		"host": rs.Host,
+		"client_ip": rs.getClientIP(),
 		"headers": rs.serializeRequestHeader(),
 	}
 }
@@ -35,6 +35,22 @@ func (rs *requestSerializer) serializeRequestHeader() []serializedHeader {
 	}
 
 	return headers
+}
+
+func (rs *requestSerializer) getClientIP() string {
+	var ip string
+
+	if forwarded := rs.Header.Get("X-FORWARDED-FOR"); forwarded != "" {
+		ip = forwarded
+		return ip
+	}
+
+	ip = rs.RemoteAddr
+	if strings.Contains(ip, "[::1]") {
+		ip = strings.Replace(ip, "[::1]", "localhost", 1)
+	}
+	ip = strings.Split(ip, ":")[0]
+	return ip
 }
 
 func NewRequestSerializer(r *http.Request) *requestSerializer {
