@@ -10,13 +10,13 @@ import (
 )
 
 // rsa.GenerateKey 함수를 이용하여 RSA 알고리즘을 사용하는 개인 키를 생성하고 반환하는 함수이다.
-func generatePrivateKey() *rsa.PrivateKey {
+func PrivateKey() *rsa.PrivateKey {
 	// 첫 번째 매개 변수는 난수를 리턴하는 I/O 리더이고, 두 번째 매개 변수는 사용할 키의 비트 크기이다.
 	key, _ := rsa.GenerateKey(rand.Reader, 4096)
 	return key
 }
 
-func savePrivateKey(key *rsa.PrivateKey, path string, password []byte) error {
+func SavePrivateKey(key *rsa.PrivateKey, path string, password []byte) error {
 	// x509.MarshalPKCS1PrivateKey 함수는 RSA Private Key를 PKCS#1로 변환(바이트로 마샬링)시켜 반환하는 함수이다.
 	b := x509.MarshalPKCS1PrivateKey(key)
 	var block *pem.Block
