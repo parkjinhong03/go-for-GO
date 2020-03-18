@@ -7,8 +7,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/pem"
 	"fmt"
 	"math/big"
+	"os"
 	"time"
 )
 
@@ -62,6 +64,21 @@ func X509Certificate(
 		panic(err)
 	}
 	return cert
+}
+
+func SaveX509Certificate(data []byte, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to open cert.pem for writing: %v", err)
+	}
+
+	block := &pem.Block{Type: "CERTIFICATE", Bytes: data}
+	err = pem.Encode(file, block)
+	if err != nil {
+		return fmt.Errorf("failed to write cert.pem: %v", err)
+	}
+	_ = file.Close()
+	return nil
 }
 
 // 개인 키의 공개 버전의 데이터에 접근하기 위해 선언한 구조체이다.
