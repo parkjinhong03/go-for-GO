@@ -5,7 +5,7 @@ import (
 	"crypto/x509/pkix"
 )
 
-var rootTemplate = x509.Certificate{
+var RootTemplate = x509.Certificate{
 	// Subject 필드를 이용하여 인증서 요청에 통합될 정보(DN)를 입력할 수 있다.
 	Subject: pkix.Name{
 		Country:            []string{"KR"},
@@ -25,7 +25,7 @@ var rootTemplate = x509.Certificate{
 }
 
 // x509.Certificate 객체를 이용하여 application 단계의 키 및 인증서를 발급받기 위해 초기 설정이 되어있는 템플릿 선언
-var applicationTemplate = x509.Certificate{
+var ApplicationTemplate = x509.Certificate{
 	Subject: pkix.Name{
 		Country:            []string{"KR"},
 		Organization:       []string{"PJH Co"},
@@ -42,7 +42,7 @@ var applicationTemplate = x509.Certificate{
 }
 
 // x509.Certificate 객체를 이용하여 instance 단계의 키 인증서를 발급받기 위해 초기 설정이 되어있는 템플릿 선언
-var instanceTemplate = x509.Certificate{
+var InstanceTemplate = x509.Certificate{
 	Subject: pkix.Name{
 		Country:            []string{"KR"},
 		Organization:       []string{"PJH Co"},
