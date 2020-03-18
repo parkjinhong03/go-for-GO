@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"math/big"
@@ -17,8 +18,39 @@ type SaltConfig struct {
 	byteLen int
 }
 
+type PepperConf struct {
+	with bool
+}
+
 func New(peppers []string) *Hash {
 	return &Hash{peppers: peppers}
+}
+
+// 솔트, 페퍼의 사용 여부를 판단하고 솔트, 페퍼의 값을 만들어서 해시한 후, 그 값과 솔트의 값을 반환하는 함수이다.
+func (h *Hash) GenerateHash(input string, saltConf SaltConfig, pepperConf PepperConf) (hash, salt string) {
+	pepper := ""
+	if pepperConf.with == true && len(h.peppers) > 0 {
+		pepper = h.getRandomPepper()
+	}
+
+	salt = ""
+	if saltConf.with == true {
+		salt = generateRandomSalt(saltConf.byteLen)
+	}
+
+	hash = h.createHash(input, salt, pepper)
+	return
+}
+
+// 매개 변수로 받은 세 문자열을 다 합해서 sha256 알고리즘으로 해시한 후, 문자열로 변환시켜 반환하는 함수이다.
+func (h *Hash) createHash(input, salt, pepper string) string {
+	stringToHash := input + salt + pepper
+
+	sha := sha256.New()
+	sha.Write([]byte(stringToHash))
+
+	hash := sha.Sum(nil)
+	return hex.EncodeToString(hash)
 }
 
 // Hash 객체의 peppers 배열 필드에 저장된 여러 문자열 중 임의로 하나를 골라서 반환하는 함수이다.
