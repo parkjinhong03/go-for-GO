@@ -1,4 +1,4 @@
-package main
+package hashing
 
 import (
 	"crypto/rand"
@@ -40,6 +40,18 @@ func (h *Hash) GenerateHash(input string, saltConf SaltConfig, pepperConf Pepper
 
 	hash = h.createHash(input, salt, pepper)
 	return
+}
+
+func (h *Hash) Compare(input, salt, hash string, pepperConf PepperConf) bool {
+	if pepperConf.with == false {
+		return h.createHash(input, salt, "") == hash
+	}
+
+	for _, pepper:= range h.peppers {
+		if h.createHash(input, salt, pepper) == hash { return true }
+	}
+
+	return false
 }
 
 // 매개 변수로 받은 세 문자열을 다 합해서 sha256 알고리즘으로 해시한 후, 문자열로 변환시켜 반환하는 함수이다.
