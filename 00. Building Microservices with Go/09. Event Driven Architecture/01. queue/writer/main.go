@@ -10,7 +10,7 @@ import (
 )
 
 type QueueWriterHandler struct {
-	queue *queue.RedisQueue
+	queue queue.Queue
 	queueNum int32
 }
 
