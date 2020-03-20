@@ -21,9 +21,9 @@ type RedisQueue struct {
 var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
 
 // Redis Queue 서버에 접속에 새로운 메시지 큐를 생성하여 반환하는 함수이다.
-func NewRedisQueue(address, queueName string) *RedisQueue {
+func NewRedisQueue(address, queueName, tag string) *RedisQueue {
 	// rmq.OpenConnection 함수를 이용해 매개변수로 받은 주소에 바인딩 되어있는 Redis Queue 서버에 tcp로 연결한다.
-	conn := rmq.OpenConnection("test service", "tcp", address, 1)
+	conn := rmq.OpenConnection(tag, "tcp", address, 1)
 	rq := conn.OpenQueue(queueName)
 
 	return &RedisQueue{
@@ -49,7 +49,7 @@ func (r *RedisQueue) AddMessage(message Message) error {
 		return fmt.Errorf("cannot marshal message to byte: %v", err)
 	}
 
-	fmt.Printf("Add event to queue: %s", string(messageByte))
+	fmt.Printf("Add event to queue: %s\n", string(messageByte))
 	// json.Marshal 함수로 인코딩한 message를 Queue.PublishBytes 메서드에 전달하여 큐에 게시한다.
 	if !r.Queue.PublishBytes(messageByte) {
 		return fmt.Errorf("cannot add message to queue: %v", err)
@@ -71,10 +71,10 @@ func (r *RedisQueue) StartConsuming(prefetchSize int, pullDuration time.Duration
 // 위에서 말했다 시피, 새 메세지가 감지되면 호출되는 함수이다.
 func (r *RedisQueue) Consume(delivery rmq.Delivery) {
 	// delivery.Payload 메서드를 이용하여 메세지의 내용(payload)를 얻을 수 있다.
-	fmt.Printf("Got event from redis queue: %s", delivery.Payload())
+	fmt.Printf("Got event from redis queue: %s\n", delivery.Payload())
 	var message Message
 	if err := json.Unmarshal([]byte(delivery.Payload()), &message); err != nil {
-		fmt.Println("Error consuming event, unable to unmarshal event")
+		fmt.Printf("Error consuming event, unable to unmarshal even: %v\n", err)
 		// payload를 message 구조체로 언마샬링 하는데 실패한다면, 메세지를 나중에 처리할 수 있도록 남겨두기 위해 delivery.Reject 메서드를 호출한다.
 		delivery.Reject()
 		return
@@ -83,12 +83,13 @@ func (r *RedisQueue) Consume(delivery rmq.Delivery) {
 	// 그리고 StartConsuming 함수에서 등록했던 callback 함수를 실행시킨다.
 	// 이 함수에서는 실질적으로 메세지를 처리하는 비즈니스 로직이 포함되어있다.
 	if err := r.callback(message); err != nil {
-		fmt.Println("Error consuming event, in processing callback function")
+		fmt.Printf("Error consuming event, in processing callback function: %v\n", err)
 		// 콜백 함수도 실패하였다면 이 메세지 또한 남겨두기 위해 delivery.Reject 메서드를 실행시킨다.
 		delivery.Reject()
 		return
 	}
 
+	fmt.Println("Succeed to processing queue message")
 	// 성공적으로 메세지 처리가 완료되었다면 delivery.Ack 메서드를 실행시켜 큐에서 해당 메세지를 제거시킨다.
 	delivery.Ack()
 }
