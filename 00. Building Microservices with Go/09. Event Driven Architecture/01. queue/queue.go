@@ -21,5 +21,8 @@ type Queue interface {
 	// name, payload를 Message 구조체에 담아서 전달하는 점을 제외하면 Add와 동일한 메서드이다.
 	AddMessage(message Message) error
 	// 구독자가 큐에서 메세지를 가져올 수 있도록 하는 메서드이다.
-	StartConsuming(size int, pollInterval time.Duration, callback func(Message) error)
+	// 첫 번째 매개변수는 작업자가 메세지에서 큐를 가져와서 동시에 처리할 수 있는 고루틴의 최대 갯수이다.
+	// 두 번째 매개변수는 작업자가 메세지에서 큐를 가져오고. 다음으로 가져오기 전까지 대기하는 시간이다.
+	// 세 번째 매개변수는 메세지에서 큐를 리턴할 때 실행되는 함수로 메세지 처리에 대한 로직이 들어간다.
+	StartConsuming(prefetchSize int, pollDuration time.Duration, callback func(Message) error)
 }
