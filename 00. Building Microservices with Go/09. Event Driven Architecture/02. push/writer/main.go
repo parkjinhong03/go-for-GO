@@ -7,11 +7,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/nats-io/nats.go"
 	"log"
 	"net/http"
-	"strings"
 )
 
 var address = flag.String("address", "", "NATS server URI")
@@ -51,4 +49,15 @@ func (ph *ProductHandler) insertProduct(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 	log.Println("Succeeded to register product insert event to Nats")
+}
+
+func main() {
+	natsCli, err := nats.Connect("nats://" + *address)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	http.Handle("/product", &ProductHandler{NatsCli: natsCli})
+	log.Println("Starting product write service on port 8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
