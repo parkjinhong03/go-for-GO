@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/micro/cli/v2"
 	"github.com/micro/go-micro/v2"
 	"github.com/parkjinhong03/go-micro-example/service/proto"
 	"log"
+	"time"
 )
 
 // RegisterGreeterHandler 함수에 등록하기 위한 객체 정의
@@ -15,6 +17,21 @@ type Greeter struct {}
 func (g *Greeter) Hello(ctx context.Context, req *proto.Request, rsp *proto.Response) error {
 	rsp.Greeting = "Hello " + req.Name
 	return nil
+}
+
+// 클라이언트를 실행시키는 함수이다.
+func RunClient(s micro.Service) {
+	// protoc 명령어로 만든 proto.NewGreeterHandler 함수를 이용하여 greeter 서비스의 Greeter Handler에 대한 클라이언트를 생성할 수 있다.
+	greeter := proto.NewGreeterService("greeter", s.Client())
+	// greeter.Hello 메서드를 호출하여 원격 rpc 통신을 진행할 수 있다.
+	// 참고로 context.WitTimeout 함수를 이용하면 기본 5초인 타임 아웃 시간을 원하는 시간으로 변경할 수 있다.
+	resp, err := greeter.Hello(context.Background(), &proto.Request{Name: "Sample Client"})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(resp.Greeting)
 }
 
 func main() {
