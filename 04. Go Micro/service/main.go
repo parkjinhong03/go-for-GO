@@ -50,6 +50,23 @@ func main() {
 		}),
 	)
 
+	// service.Init 메서드를 이용하면 서비스가 실행되기 전에 기본적으로 설정하거나 실행시킬 옵션들을 등록할 수 있다.
+	service.Init(
+		// micro.Action 함수는 함수를 매개변수로 받음으로써 서비스 실행 전에 실행시킬 동작들을 등록해준다.
+		micro.Action(func(ctx *cli.Context) error {
+			// 매개변수로 받은 ctx에는 micro.Flags 함수를 이용하여 등록한 flags 값들이 있고, Bool, String 등의 메서드를 이용하여 파싱할 수 있다.
+			if !ctx.Bool("run_client") { return nil }
+
+			// 만약 run_client Flag를 사용자가 입력했다면, 고루틴으로 일정 시간 대기 후 클라이언트를 실행시키는 함수를 실행시킨다.
+			go func() {
+				time.Sleep(time.Second)
+				RunClient(service)
+			}()
+
+			return nil
+		}),
+	)
+
 	// protoc 명령어로 만든 proto.RegisterGreeterHandler 함수에 위에서 정의한 Greeter 핸들러를 넘겨 해당 핸들러를 서비스에 등록한다.
 	if err := proto.RegisterGreeterHandler(service.Server(), new(Greeter)); err != nil {
 		log.Fatal(err)
