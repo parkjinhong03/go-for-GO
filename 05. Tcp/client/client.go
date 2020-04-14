@@ -16,5 +16,5 @@ type ChatClient interface {
 	Start()
 	Close()
 	// 서버로부터 명령어를 수신하기 위한 채널을 반환해주는 메서드
-	Incoming() chan protocol.MessageCommand
+	Incoming() <-chan protocol.MessageCommand
 }
