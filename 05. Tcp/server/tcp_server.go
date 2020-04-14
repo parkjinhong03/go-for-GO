@@ -82,9 +82,9 @@ func (ts *TcpChatServer) serve(client *client) {
 		// 위에서 선언한 Reader를 이용해 클라이언트가 보낸 명령어를 읽어들인다.
 		v, err := reader.Read()
 		if err == io.EOF {
-			break
+			continue
 		} else if err != nil {
-			log.Printf("Unable to parse string command, err: %v\n", err)
+			log.Printf("Unable to parse command from client, err: %v\n", err)
 			return
 		}
 		switch cmd := v.(type) {
@@ -95,6 +95,10 @@ func (ts *TcpChatServer) serve(client *client) {
 				Name:    client.name,
 				Message: cmd.Message,
 			})
+		case protocol.DisconnectCommand:
+			return
+		default:
+			log.Println("Undefined message comes in.")
 		}
 	}
 }
