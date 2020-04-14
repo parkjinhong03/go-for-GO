@@ -19,3 +19,5 @@ type MessageCommand struct {
 	Name string
 	Message string
 }
+
+type DisconnectCommand struct {}
