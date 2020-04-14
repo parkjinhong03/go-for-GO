@@ -51,3 +51,23 @@ func (tc *TcpChatClient) Start() {
 		}
 	}
 }
+
+func (tc *TcpChatClient) Close() {
+	_ = tc.conn.Close()
+}
+
+func (tc *TcpChatClient) Send(v interface{}) error {
+	return tc.writer.Write(v)
+}
+
+func (tc *TcpChatClient) SendMessage(message string) error {
+	return tc.Send(protocol.SendCommand{Message: message})
+}
+
+func (tc *TcpChatClient) SetName(name string) error {
+	return tc.Send(protocol.NameCommand{Name: name})
+}
+
+func (tc *TcpChatClient) Incoming() <-chan protocol.MessageCommand {
+	return tc.incoming
+}
