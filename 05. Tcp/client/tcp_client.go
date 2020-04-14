@@ -37,9 +37,10 @@ func (tc *TcpChatClient) Start() {
 		// reader를 이용해서 서버로부터 받은 명령을 읽어들일 수 있다.
 		v, err := tc.reader.Read()
 		if err == io.EOF {
-			break
+			continue
 		} else if err != nil {
-			log.Printf("Some error occurs while reading command from server err: %v", err)
+			log.Printf("Some error occurs while reading command from server err: %v\n", err)
+			return
 		}
 
 		switch cmd := v.(type) {
@@ -57,6 +58,7 @@ func (tc *TcpChatClient) Close() {
 }
 
 func (tc *TcpChatClient) Send(v interface{}) error {
+	// writer를 이용하여 서버에게 명령을 전송할 수 있다.
 	return tc.writer.Write(v)
 }
 
@@ -66,6 +68,12 @@ func (tc *TcpChatClient) SendMessage(message string) error {
 
 func (tc *TcpChatClient) SetName(name string) error {
 	return tc.Send(protocol.NameCommand{Name: name})
+}
+
+func (tc *TcpChatClient) Disconnect() (err error) {
+	err = tc.Send(protocol.DisconnectCommand{})
+	_ = tc.conn.Close()
+	return
 }
 
 func (tc *TcpChatClient) Incoming() <-chan protocol.MessageCommand {
