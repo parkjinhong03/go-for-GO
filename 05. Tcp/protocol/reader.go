@@ -50,6 +50,10 @@ func (r *CommandReader) Read() (v interface{}, err error) {
 			Message: strings.Split(message, "\n")[0],
 		}
 
+	case "DISCONNECT ":
+		_, _ = r.reader.ReadString('\n')
+		v = DisconnectCommand{}
+
 	default:
 		_, _ = r.reader.ReadString('\n')
 		v = UndefinedCommand
