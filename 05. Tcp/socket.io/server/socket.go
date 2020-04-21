@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/googollee/go-socket.io"
+	"log"
 	"sync"
 )
 
@@ -17,5 +18,21 @@ func NewSocketServer() (*socketServer, error) {
 		clients: []*client{},
 		mutex:   &sync.Mutex{},
 	}
+
+	s.Server.OnConnect("/", func(conn socketio.Conn) (err error) {
+		if err = s.accept(conn); err == nil {
+			log.Printf("Completed connecting new client(id: %s)! tatal client: %d", conn.ID(), len(s.clients))
+		}
+		return
+	})
 	return s, nil
+}
+
+func (s *socketServer) accept(conn socketio.Conn) error {
+	c := &client{
+		conn: conn,
+		id: conn.ID(),
+	}
+	s.clients = append(s.clients, c)
+	return nil
 }
