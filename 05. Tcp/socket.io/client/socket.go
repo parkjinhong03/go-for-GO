@@ -6,13 +6,11 @@ import (
 	"log"
 )
 
-func NewSocketClient(user, pwd string) *socketio_client.Client {
+func NewSocketClient() *socketio_client.Client {
 	opts := &socketio_client.Options{
 		Transport: "websocket",
 		Query:     make(map[string]string),
 	}
-	opts.Query["user"] = user
-	opts.Query["pwd"] = pwd
 	uri := "http://172.30.1.24:8080"
 
 	client, err := socketio_client.NewClient(uri, opts)
