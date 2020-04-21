@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/googollee/go-socket.io"
 	"log"
 	"sort"
@@ -36,8 +35,14 @@ func NewSocketServer() (*socketServer, error) {
 	s.Server.OnEvent("/", "NAME", func(conn socketio.Conn, name string) {
 		idx := s.searchIdx(conn.ID())
 		s.clients[idx].name = name
-		for _, i := range s.clients { fmt.Println(i.name) }
 	})
+	s.Server.OnEvent("/", "SEND", func(conn socketio.Conn, message string) {
+		idx := s.searchIdx(conn.ID())
+		for _, cli := range s.clients {
+			cli.conn.Emit("MESSAGE", s.clients[idx].name, message)
+		}
+	})
+
 	return s, nil
 }
 
