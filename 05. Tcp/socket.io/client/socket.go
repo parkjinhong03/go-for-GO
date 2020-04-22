@@ -11,7 +11,7 @@ func NewSocketClient() *socketClient {
 		Transport: "websocket",
 		Query:     make(map[string]string),
 	}
-	uri := "http://172.30.1.24:8080/socket.io/"
+	uri := "http://ec2-18-218-105-177.us-east-2.compute.amazonaws.com:8080/socket.io/"
 
 	client, err := socketio_client.NewClient(uri, opts)
 	if err != nil {
