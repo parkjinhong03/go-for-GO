@@ -54,6 +54,9 @@ func (s *socketServer) searchIdx(id string) (idx int) {
 }
 
 func (s *socketServer) accept(conn socketio.Conn) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	c := &client{
 		conn: conn,
 		id: conn.ID(),
@@ -64,6 +67,9 @@ func (s *socketServer) accept(conn socketio.Conn) error {
 }
 
 func (s *socketServer) remove(conn socketio.Conn) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	idx := s.searchIdx(conn.ID())
 	s.clients = append(s.clients[:idx], s.clients[idx+1:]...)
 	return nil
