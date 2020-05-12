@@ -1,0 +1,22 @@
+version: '2'
+services:
+  auth_microservice:
+    container_name: auth_microservice_dev
+    image: auth_microservice_image:latest
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - NATS=localhost:4222
+      - GO111MODULE=on
+    networks:
+      - MSAnet1
+    ports:
+      - 8080:8080
+
+networks:
+  MSAnet1:
+    driver: bridge
+
+volumes:
+  db:
+    driver: local
