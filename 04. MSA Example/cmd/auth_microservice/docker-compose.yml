@@ -8,6 +8,7 @@ services:
     environment:
       - NATS=localhost:4222
       - GO111MODULE=on
+      - DB_PASSWORD=auth_microservice_db_password
     networks:
       - MSAnet1
     ports:
