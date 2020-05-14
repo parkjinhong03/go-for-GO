@@ -1,0 +1,8 @@
+version: '2'
+services:
+  nats_server:
+    image: nats:latest
+    container_name: nats_server_dev
+    ports:
+      - 4222:4222
+      - 8222:8222
