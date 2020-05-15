@@ -12,11 +12,11 @@ func init() {
 	address = flag.String("nats", "", "Nats server address")
 }
 
-type DefaultNatsMessage struct {
+type defaultNatsMessage struct {
 	*nats.Conn
 }
 
-func GetDefaultNatsByEnv() (*DefaultNatsMessage, error) {
+func GetDefaultNatsByEnv() (*defaultNatsMessage, error) {
 	address := os.Getenv("NATS")
 	if address == "" {
 		return nil, errors.New("please set your NATS environment variable")
@@ -24,7 +24,7 @@ func GetDefaultNatsByEnv() (*DefaultNatsMessage, error) {
 	return GetDefaultNats(address)
 }
 
-func GetDefaultNatsByFlag() (*DefaultNatsMessage, error) {
+func GetDefaultNatsByFlag() (*defaultNatsMessage, error) {
 	flag.Parse()
 	if *address == "" {
 		return nil, errors.New("please set your nats command line flag")
@@ -32,19 +32,19 @@ func GetDefaultNatsByFlag() (*DefaultNatsMessage, error) {
 	return GetDefaultNats(*address)
 }
 
-func GetDefaultNats(address string) (*DefaultNatsMessage, error) {
+func GetDefaultNats(address string) (*defaultNatsMessage, error) {
 	conn, err := nats.Connect("nats://" + address)
 	if err != nil {
 		return nil, err
 	}
 
-	return &DefaultNatsMessage{Conn: conn}, nil
+	return &defaultNatsMessage{Conn: conn}, nil
 }
 
-func (nm *DefaultNatsMessage) Subscribe(subj string, cb nats.MsgHandler) (*nats.Subscription, error) {
+func (nm *defaultNatsMessage) Subscribe(subj string, cb nats.MsgHandler) (*nats.Subscription, error) {
 	return nm.Conn.Subscribe(subj, cb)
 }
 
-func (nm *DefaultNatsMessage) Publish(subj string, data []byte) error {
+func (nm *defaultNatsMessage) Publish(subj string, data []byte) error {
 	return nm.Conn.Publish(subj, data)
 }
