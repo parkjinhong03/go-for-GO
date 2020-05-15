@@ -16,23 +16,23 @@ type defaultNatsMessage struct {
 	*nats.Conn
 }
 
-func DefaultNatsMessageByEnv() (*defaultNatsMessage, error) {
+func GetDefaultNatsByEnv() (*defaultNatsMessage, error) {
 	address := os.Getenv("NATS")
 	if address == "" {
 		return nil, errors.New("please set your NATS environment variable")
 	}
-	return DefaultNatsMessage(address)
+	return GetDefaultNats(address)
 }
 
-func DefaultNatsMessageByFlag() (*defaultNatsMessage, error) {
+func GetDefaultNatsByFlag() (*defaultNatsMessage, error) {
 	flag.Parse()
 	if *address == "" {
 		return nil, errors.New("please set your nats command line flag")
 	}
-	return DefaultNatsMessage(*address)
+	return GetDefaultNats(*address)
 }
 
-func DefaultNatsMessage(address string) (*defaultNatsMessage, error) {
+func GetDefaultNats(address string) (*defaultNatsMessage, error) {
 	conn, err := nats.Connect("nats://" + address)
 	if err != nil {
 		return nil, err
