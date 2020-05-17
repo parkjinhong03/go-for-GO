@@ -9,4 +9,5 @@ type AuthSignUpProtocol struct {
 	Introduction string
 	Email string
 	ReturnChannel string
+	InputChannel string
 }
