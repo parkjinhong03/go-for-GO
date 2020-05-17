@@ -1,4 +1,4 @@
-version: '2'
+version: '3.5'
 services:
   nats_server:
     image: nats:latest
@@ -6,3 +6,10 @@ services:
     ports:
       - 4222:4222
       - 8222:8222
+    networks:
+      - MSAnet1
+
+networks:
+  MSAnet1:
+    name: MSAnet1
+    driver: bridge
