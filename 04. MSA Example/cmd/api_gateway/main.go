@@ -3,6 +3,9 @@ package main
 import (
 	"MSA.example.com/1/entities"
 	"MSA.example.com/1/middleware"
+	"MSA.example.com/1/protocol"
+	"MSA.example.com/1/proxy"
+	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"MSA.example.com/1/tool/message"
 	"encoding/json"
 	"fmt"
@@ -14,12 +17,14 @@ import (
 func main () {
 	natsM, err := message.GetDefaultNatsByEnv()
 	if err != nil {
-		log.Fatalf("unable to connect nats message server, err:%v\n", err)
+		log.Fatalf("unable to connect nats message server, err: %v\n", err)
 	}
+	validate := validator.New()
 
 	authH := middleware.NewCorrelationMiddleware(&authServiceHandler{
 		natsM: natsM,
-		validate: validator.New(),
+		validate: validate,
+		natsE: natsEncoder.NewJsonEncoder(proxy.NewAuthServiceProxy(natsM)),
 	})
 
 	http.Handle("/api/auth/", http.StripPrefix("/api/auth/", authH))
@@ -31,6 +36,7 @@ func main () {
 type authServiceHandler struct {
 	natsM message.NatsMessage
 	validate *validator.Validate
+	natsE natsEncoder.Encoder
 }
 
 func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -46,7 +52,6 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		request := entities.AuthSignUpEntities{}
 		err := d.Decode(&request)
 		if err != nil {
-			_, _ = fmt.Fprintf(rw, "Please format body as json, err:%v", err)
 			rw.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -56,13 +61,26 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		// json 마샬링 후 이벤트 발생 및 수신 코드 추가
-
+		err = h.natsE.Encode(protocol.AuthSignUpProtocol{
+			RequestId:     r.Header.Get("X-Request-ID"),
+			UserId:        request.UserId,
+			UserPwd:       request.UserPwd,
+			Name:          request.Name,
+			PhoneNumber:   request.PhoneNumber,
+			Introduction:  request.Introduction,
+			Email:         request.Email,
+			ReturnChannel: "auth.signup.return",
+			InputChannel:  "auth.signup",
+		})
+		if err != nil {
+			log.Printf("some error occurs while encoding to message, err: %v\n", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		rw.WriteHeader(http.StatusOK)
 		return
 	}
 
-	_, _ = fmt.Fprint(rw, "404 page not found")
 	rw.WriteHeader(http.StatusNotFound)
 	return
 }
