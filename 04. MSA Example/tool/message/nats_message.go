@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/nats-io/nats.go"
 	"os"
+	"time"
 )
 
 var address *string
@@ -47,4 +48,8 @@ func (nm *defaultNatsMessage) Subscribe(subj string, cb nats.MsgHandler) (*nats.
 
 func (nm *defaultNatsMessage) Publish(subj string, data []byte) error {
 	return nm.Conn.Publish(subj, data)
+}
+
+func (nm *defaultNatsMessage) Request(subj string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+	return nm.Conn.Request(subj, data, timeout)
 }
