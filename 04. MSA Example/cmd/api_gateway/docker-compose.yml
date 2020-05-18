@@ -1,0 +1,18 @@
+version: '3.5'
+services:
+  api_gateway:
+    container_name: api_gateway_dev
+    image: api_gateway_image:latest
+    environment:
+      - NATS=nats_server_dev:4222
+      - GO111MODULE=on
+    ports:
+      - 8080:8080
+    networks:
+      - MSAnet1
+
+networks:
+  MSAnet1:
+    name: MSAnet1
+    driver: bridge
+
