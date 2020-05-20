@@ -26,7 +26,14 @@ func (e *jsonEncoder) Encode(v interface{}) error {
 		if _, ok := v.(protocol.AuthSignUpProtocol); !ok {
 			return errors.New("this object cannot be encoded in your proxy")
 		}
+	default:
+		return errors.New("it is a proxy or incorrect proxy that this object cannot handle")
 	}
 
-	return e.Encoder.Encode(v)
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	_, err = e.proxy.Write(b)
+	return err
 }
