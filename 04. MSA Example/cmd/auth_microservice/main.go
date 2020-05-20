@@ -3,7 +3,9 @@ package main
 import (
 	"MSA.example.com/1/dataservice/userdata"
 	"MSA.example.com/1/tool/dbc"
+	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"MSA.example.com/1/tool/message"
+	"MSA.example.com/1/tool/proxy"
 	"MSA.example.com/1/usecase"
 	"github.com/go-playground/validator/v10"
 	"log"
@@ -23,7 +25,8 @@ func main() {
 		log.Fatalf("unable to connect NATS server, err: %v\n", err)
 	}
 	validate := validator.New()
-	u := usecase.NewAuthDefaultUseCase(userD, natsM, validate)
+	encoder := natsEncoder.NewJsonEncoder(proxy.NewApiGatewayProxy(natsM, validate))
+	u := usecase.NewAuthDefaultUseCase(userD, validate, encoder)
 
 	_, err = natsM.Subscribe("auth.signup", u.SignUpMsgHandler)
 	// handler들을 메서드로 가지고 있는 usecase 구조체 생성 추가 (db, nats 필드 소유)
