@@ -26,7 +26,13 @@ func (e *jsonEncoder) Encode(v interface{}) error {
 		switch v.(type) {
 		case protocol.AuthSignUpRequestProtocol:
 		default:
-			return errors.New("this object cannot be encoded in your proxy")
+			return errors.New("this object cannot be encoded in your AuthServiceProxy")
+		}
+	case *proxy.ApiGatewayProxy:
+		switch v.(type) {
+		case protocol.ApiGatewaySignUpResponseProtocol:
+		default:
+			return errors.New("this object cannot be encoded in your ApiGatewayProxy")
 		}
 	default:
 		return errors.New("it is a proxy or incorrect proxy that this object cannot handle")
