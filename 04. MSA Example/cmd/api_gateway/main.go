@@ -2,9 +2,9 @@ package main
 
 import (
 	"MSA.example.com/1/middleware"
-	"MSA.example.com/1/proxy"
 	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"MSA.example.com/1/tool/message"
+	"MSA.example.com/1/tool/proxy"
 	"MSA.example.com/1/usecase"
 	"github.com/go-playground/validator/v10"
 	"log"
@@ -19,7 +19,7 @@ func main () {
 	validate := validator.New()
 
 	authH := middleware.NewCorrelationMiddleware(
-		usecase.NewAuthServiceHandler(natsM, validate, natsEncoder.NewJsonEncoder(proxy.NewAuthServiceProxy(natsM))),
+		usecase.NewAuthServiceHandler(natsM, validate, natsEncoder.NewJsonEncoder(proxy.NewAuthServiceProxy(natsM, validate))),
 	)
 
 	http.Handle("/api/auth/", http.StripPrefix("/api/auth/", authH))
