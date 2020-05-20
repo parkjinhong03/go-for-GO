@@ -39,16 +39,15 @@ func (ap *AuthServiceProxy) Write(b []byte) (int, error) {
 	}
 
 	switch r.Required.Usage {
-	case "AuthSignUp":
-		msg, err := ap.natsM.Request(r.Required.InputChannel, b, 1 * time.Second)
+	case "AuthSignUpRequest":
+		msg, err := ap.natsM.Request(r.Required.InputChannel, b, 5 * time.Second)
 		if err != nil {
 			myErr.Err = err
 			return 0, myErr
 		}
 		myErr.ReturnMsg = msg
-
 	default:
-		err := errors.New("this channel is currently unavailable")
+		err := errors.New("this Usage is undefined so cannot be processed")
 		myErr.Err = err
 	}
 
