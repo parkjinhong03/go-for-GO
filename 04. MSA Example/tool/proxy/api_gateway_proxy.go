@@ -5,13 +5,13 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type ApiGatewayProxy struct {
+type apiGatewayProxy struct {
 	natsM message.NatsMessage
 	validate *validator.Validate
 }
 
-func NewApiGatewayProxy(nastM message.NatsMessage, validate *validator.Validate) *AuthServiceProxy {
-	return &AuthServiceProxy{
+func NewApiGatewayProxy(nastM message.NatsMessage, validate *validator.Validate) *apiGatewayProxy {
+	return &apiGatewayProxy{
 		natsM:    nastM,
 		validate: validate,
 	}
