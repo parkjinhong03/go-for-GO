@@ -13,13 +13,21 @@ import (
 	"strings"
 )
 
-type AuthServiceHandler struct {
+type authServiceHandler struct {
 	natsM message.NatsMessage
 	validate *validator.Validate
 	natsE natsEncoder.Encoder
 }
 
-func (h *AuthServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+func NewAuthServiceHandler(nastM message.NatsMessage, validator *validator.Validate, natsE natsEncoder.Encoder) *authServiceHandler {
+	return &authServiceHandler{
+		natsM:    nastM,
+		validate: validator,
+		natsE:    natsE,
+	}
+}
+
+func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 		return
