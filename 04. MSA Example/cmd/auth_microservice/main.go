@@ -15,6 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to connect DB server, err: %v\n", err)
 	}
+	db.LogMode(false)
 
 	userD := userdata.GetUserDAO(db)
 	natsM, err := message.GetDefaultNatsByEnv()
