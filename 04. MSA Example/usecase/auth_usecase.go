@@ -10,6 +10,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/nats-io/nats.go"
 	"log"
+	"strconv"
+	"strings"
 )
 
 type authDefaultUseCase struct {
@@ -41,7 +43,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 	user := model.Users{
 		Model:   gorm.Model{},
 		UserId:  data.UserId,
-		UserPwd: data.UserPwd,
+		UserPwd: "",
 	}
 	result, err := h.userD.Insert(&user)
 
@@ -53,15 +55,19 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		RequestId:  data.RequestId,
 		ResultUser: result,
 		Success:    true,
-		ErrorCode:  "",
+		ErrorCode:  0,
 	}
 
 	if err != nil {
 		log.Printf("unable to insert new user in database, err: %v\n", err)
-		// 에러 코드 파싱 추가
+		errArr := strings.Split(err.Error(), " ")
+		errInt, err := strconv.Atoi(errArr[1][:4])
+		if errArr[0] != "Error" || err != nil {
+			p.ErrorCode = ParsingFailureErrorCode // 에러 코드 파싱 실패
+		}
 		p.ResultUser = nil
 		p.Success = false
-		p.ErrorCode = err.Error()
+		p.ErrorCode = errInt
 	}
 
 	err = h.agNatsE.Encode(p)
