@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/googollee/go-socket.io"
 	"log"
 	"sort"
@@ -27,6 +28,9 @@ func NewSocketServer() (*socketServer, error) {
 		return
 	})
 	s.Server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
+		fmt.Println("no!")
+	})
+	s.Server.OnEvent("/", "DISCONNECTING", func(conn socketio.Conn, reason string) {
 		if err = s.remove(conn); err == nil {
 			log.Printf("Completed disconnecting with client(id: %s)! tatal client: %d", conn.ID(), len(s.clients))
 		}
