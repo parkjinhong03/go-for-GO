@@ -39,12 +39,20 @@ func (u *userDAO) FindByUserId(userId string) (*model.Users, error) {
 }
 
 func (u *userDAO) Insert(user *model.Users) (*model.Users, error) {
-	db := u.db.Create(user)
-	if db.Error != nil {
-		return nil, db.Error
+	var r *model.Users
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		if tx = tx.Create(user); tx.Error != nil {
+			return tx.Error
+		}
+		r = tx.Value.(*model.Users)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return db.Value.(*model.Users), nil
+	return r, nil
 }
+
 
 func (u *userDAO) Remove(id uint32) (int64, error) {
 	db := u.db.Where("id = ?", id).Delete(model.Users{})
