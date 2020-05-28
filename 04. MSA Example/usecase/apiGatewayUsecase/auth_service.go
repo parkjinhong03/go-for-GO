@@ -1,4 +1,4 @@
-package usecase
+package apiGatewayUsecase
 
 import (
 	"MSA.example.com/1/entities"
@@ -6,6 +6,7 @@ import (
 	"MSA.example.com/1/tool/customError"
 	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"MSA.example.com/1/tool/message"
+	"MSA.example.com/1/usecase"
 	"encoding/json"
 	"github.com/go-playground/validator/v10"
 	"log"
@@ -89,16 +90,7 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		// 에러 코드 상수화 추가
-		switch p.ErrorCode {
-		case UserIdDuplicateErrorCode:
-			rw.WriteHeader(470)
-			return
-		case ParsingFailureErrorCode:
-			log.Println("undefined error code")
-			rw.WriteHeader(http.StatusInternalServerError)
-			return
-		case SuccessErrorCode:
+		if p.Success {
 			reply := entities.SignUpResponseEntities{
 				StatusCode: http.StatusOK,
 				ResultUser: p.ResultUser,
@@ -109,6 +101,17 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 				rw.WriteHeader(http.StatusInternalServerError)
 				return
 			}
+		}
+
+		// 에러 코드 상수화 추가
+		switch p.ErrorCode {
+		case usecase.UserIdDuplicateErrorCode:
+			rw.WriteHeader(470)
+			return
+		case usecase.ParsingFailureErrorCode:
+			log.Println("undefined error code")
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
 		default:
 			log.Println("undefined error code")
 			rw.WriteHeader(http.StatusInternalServerError)
