@@ -6,9 +6,11 @@ import (
 	"MSA.example.com/1/tool/message"
 	"MSA.example.com/1/tool/proxy"
 	"MSA.example.com/1/usecase/apiGatewayUsecase"
+	"github.com/eapache/go-resiliency/breaker"
 	"github.com/go-playground/validator/v10"
 	"log"
 	"net/http"
+	"time"
 )
 
 func main () {
@@ -17,9 +19,11 @@ func main () {
 		log.Fatalf("unable to connect nats message server, err: %v\n", err)
 	}
 	validate := validator.New()
+	natsE := natsEncoder.NewJsonEncoder(proxy.NewAuthServiceProxy(natsM, validate))
+	breakeR := breaker.New(3, 1, time.Minute)
 
 	authH := middleware.NewCorrelationMiddleware(
-		apiGatewayUsecase.NewAuthServiceHandler(natsM, validate, natsEncoder.NewJsonEncoder(proxy.NewAuthServiceProxy(natsM, validate))),
+		apiGatewayUsecase.NewAuthServiceHandler(natsM, validate, natsE, breakeR),
 	)
 
 	http.Handle("/api/auth/", http.StripPrefix("/api/auth/", authH))
