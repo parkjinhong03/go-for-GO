@@ -8,23 +8,29 @@ import (
 	"MSA.example.com/1/tool/message"
 	"MSA.example.com/1/usecase"
 	"encoding/json"
+	"github.com/eapache/go-resiliency/breaker"
+	"github.com/eapache/go-resiliency/deadline"
 	"github.com/go-playground/validator/v10"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type authServiceHandler struct {
-	natsM 		message.NatsMessage
-	validate 	*validator.Validate
-	natsE 		natsEncoder.Encoder
+	natsM    message.NatsMessage
+	validate *validator.Validate
+	natsE    natsEncoder.Encoder
+	breakeR  *breaker.Breaker
 }
 
-func NewAuthServiceHandler(nastM message.NatsMessage, validator *validator.Validate, natsE natsEncoder.Encoder) *authServiceHandler {
+func NewAuthServiceHandler(nastM message.NatsMessage, validator *validator.Validate,
+	natsE natsEncoder.Encoder, breakeR *breaker.Breaker) *authServiceHandler {
 	return &authServiceHandler{
 		natsM:    nastM,
 		validate: validator,
 		natsE:    natsE,
+		breakeR:  breakeR,
 	}
 }
 
@@ -37,7 +43,25 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 
 	switch paths[0] {
 	case "signup":
-		h.SignUpHandler(rw, r)
+		toFunc := func(i <-chan struct{}) error {
+			h.SignUpHandler(rw, r)
+			return nil
+		}
+		brFunc := func() error {
+			dl := deadline.New(time.Second)
+			return dl.Run(toFunc)
+		}
+		err := h.breakeR.Run(brFunc)
+		switch err {
+		case breaker.ErrBreakerOpen:
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			return
+		case deadline.ErrTimedOut:
+			rw.WriteHeader(http.StatusRequestTimeout)
+			return
+		default:
+			return
+		}
 	default:
 		rw.WriteHeader(http.StatusNotFound)
 	}
@@ -58,8 +82,7 @@ func (h *authServiceHandler) SignUpHandler(rw http.ResponseWriter, r *http.Reque
 	}
 
 	// 타임아웃, 회로 차단기 구현
-	// auth_microservice 응답 코드 추가
-	// usecase 트랜직셔널, 트랜잭셔널 메시징 기능 추가
+	// 트랜잭셔널 메시징 기능 추가
 	enErr := h.natsE.Encode(protocol.AuthSignUpRequestProtocol{
 		Required: protocol.RequiredProtocol{
 			Usage:        "AuthSignUpRequest",
