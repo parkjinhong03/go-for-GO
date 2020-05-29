@@ -3,6 +3,7 @@ module MSA.example.com/1
 go 1.13
 
 require (
+	github.com/eapache/go-resiliency v1.2.0
 	github.com/go-playground/validator/v10 v10.2.0
 	github.com/golang/protobuf v1.4.1 // indirect
 	github.com/google/uuid v1.1.1
