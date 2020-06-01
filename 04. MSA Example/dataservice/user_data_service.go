@@ -46,10 +46,7 @@ func (u *userDAO) Insert(user *model.Users) (*model.Users, error) {
 		}
 		return tx.Error
 	}
-	if err := u.db.Transaction(txFunc); err != nil {
-		return nil, err
-	}
-	return r, nil
+	return r, u.db.Transaction(txFunc)
 }
 
 
