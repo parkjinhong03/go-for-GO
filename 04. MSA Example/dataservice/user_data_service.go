@@ -1,9 +1,8 @@
-package userdata
+package dataservice
 
 import (
 	"MSA.example.com/1/model"
 	"errors"
-	"fmt"
 	"github.com/jinzhu/gorm"
 )
 
@@ -12,6 +11,7 @@ type userDAO struct {
 }
 
 func GetUserDAO(db *gorm.DB) *userDAO {
+	db.LogMode(false)
 	db.AutoMigrate(
 		&model.Users{},
 	)
@@ -40,14 +40,13 @@ func (u *userDAO) FindByUserId(userId string) (*model.Users, error) {
 
 func (u *userDAO) Insert(user *model.Users) (*model.Users, error) {
 	var r *model.Users
-	err := u.db.Transaction(func(tx *gorm.DB) error {
-		if tx = tx.Create(user); tx.Error != nil {
-			return tx.Error
+	txFunc := func(tx *gorm.DB) error {
+		if tx = tx.Create(user); tx.Error == nil {
+			r = tx.Value.(*model.Users)
 		}
-		r = tx.Value.(*model.Users)
-		return nil
-	})
-	if err != nil {
+		return tx.Error
+	}
+	if err := u.db.Transaction(txFunc); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -57,7 +56,6 @@ func (u *userDAO) Insert(user *model.Users) (*model.Users, error) {
 func (u *userDAO) Remove(id uint32) (int64, error) {
 	db := u.db.Where("id = ?", id).Delete(model.Users{})
 	if db.Error != nil {
-		fmt.Println(db.Error)
 		return 0, db.Error
 	}
 	return db.RowsAffected, nil
