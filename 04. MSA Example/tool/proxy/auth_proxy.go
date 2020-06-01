@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/go-playground/validator/v10"
+	"github.com/nats-io/nats.go"
 	"time"
 )
 
@@ -38,18 +39,16 @@ func (ap *AuthServiceProxy) Write(b []byte) (int, error) {
 		return 0, myErr
 	}
 
+	var err error
+	var msg *nats.Msg
 	switch r.Required.Usage {
 	case "AuthSignUpRequest":
-		msg, err := ap.natsM.Request(r.Required.InputChannel, b, 5 * time.Second)
-		if err != nil {
-			myErr.Err = err
-			return 0, myErr
-		}
-		myErr.ReturnMsg = msg
+		msg, err = ap.natsM.Request(r.Required.InputChannel, b, 5 * time.Second)
 	default:
-		err := errors.New("this Usage is undefined so cannot be processed")
-		myErr.Err = err
+		err = errors.New("this Usage is undefined so cannot be processed")
 	}
 
+	myErr.Err = err
+	myErr.ReturnMsg = msg
 	return 0, myErr
 }
