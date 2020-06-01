@@ -2,21 +2,26 @@ package usecase
 
 import (
 	"MSA.example.com/1/dataservice"
-	"MSA.example.com/1/tool/message"
+	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"github.com/go-playground/validator/v10"
+	"github.com/nats-io/nats.go"
 )
 
 type userUseCase struct {
-	authJsonE     message.NatsMessage
+	authNatsE     natsEncoder.Encoder
 	userInformDAO dataservice.UserInformDataService
 	validate      *validator.Validate
 }
 
 func NewUserUseCase(
-	authJsonE message.NatsMessage, userInformDAO dataservice.UserInformDataService, validate *validator.Validate) *userUseCase {
+	authNatsE natsEncoder.Encoder, userInformDAO dataservice.UserInformDataService, validate *validator.Validate) *userUseCase {
 		return &userUseCase{
-			authJsonE:     authJsonE,
+			authNatsE:     authNatsE,
 			userInformDAO: userInformDAO,
 			validate:      validate,
 		}
+}
+
+func (u *userUseCase) RegistryMsgHandler(msg *nats.Msg) {
+
 }
