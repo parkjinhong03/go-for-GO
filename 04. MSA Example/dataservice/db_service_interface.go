@@ -13,5 +13,5 @@ type UserDataService interface {
 }
 
 type UserInformDataService interface {
-	Insert(userInform *model.UserInform)
+	Insert(userInform *model.UserInform) (result *model.UserInform, err error)
 }
