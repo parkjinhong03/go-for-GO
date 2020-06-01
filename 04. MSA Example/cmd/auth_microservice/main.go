@@ -24,11 +24,12 @@ func main() {
 		log.Fatalf("unable to connect NATS server, err: %v\n", err)
 	}
 	validate := validator.New()
-	encoder := natsEncoder.NewJsonEncoder(proxy.NewApiGatewayProxy(natsM, validate))
-	u := usecase.NewAuthDefaultUseCase(userD, validate, encoder)
+	apiNatsE := natsEncoder.NewJsonEncoder(proxy.NewApiGatewayProxy(natsM, validate))
+	userNatsE := natsEncoder.NewJsonEncoder(proxy.NewUserServiceProxy(natsM, validate))
+	u := usecase.NewAuthDefaultUseCase(userD, validate, apiNatsE, userNatsE)
 
 	_, err = natsM.Subscribe("auth.signup", u.SignUpMsgHandler)
-	// handler들을 메서드로 가지고 있는 usecase 구조체 생성 추가 (db, nats 필드 소유)
+	// user.registry 응답 subscribe
 	if err != nil {
 		log.Fatalf("unable to subscribe auth.login from nats message broker, err: %v\n", err)
 	}
