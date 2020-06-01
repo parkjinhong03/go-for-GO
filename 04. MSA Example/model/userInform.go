@@ -2,7 +2,7 @@ package model
 
 import "github.com/jinzhu/gorm"
 
-type userInform struct {
+type UserInform struct {
 	gorm.Model
 	Users Users `gorm:"foreignkey:UserPk"`
 	Name string `gorm:"NOT NULL;Type:VARCHAR(20)"`
