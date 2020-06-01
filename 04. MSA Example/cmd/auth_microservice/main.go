@@ -1,7 +1,7 @@
 package main
 
 import (
-	"MSA.example.com/1/dataservice/userdata"
+	"MSA.example.com/1/dataservice"
 	"MSA.example.com/1/tool/dbc"
 	natsEncoder "MSA.example.com/1/tool/encoder/nats"
 	"MSA.example.com/1/tool/message"
@@ -17,9 +17,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to connect DB server, err: %v\n", err)
 	}
-	db.LogMode(false)
 
-	userD := userdata.GetUserDAO(db)
+	userD := dataservice.GetUserDAO(db)
 	natsM, err := message.GetDefaultNatsByEnv()
 	if err != nil {
 		log.Fatalf("unable to connect NATS server, err: %v\n", err)
