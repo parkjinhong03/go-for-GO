@@ -23,18 +23,19 @@ const (
 )
 
 type authDefaultUseCase struct {
-	userD    dataservice.UserDataService
-	validate *validator.Validate
-	agNatsE  natsEncoder.Encoder
+	userD               dataservice.UserDataService
+	validate            *validator.Validate
+	apiNatsE, userNatsE natsEncoder.Encoder
 }
 
-func NewAuthDefaultUseCase(
-	userD dataservice.UserDataService, validate *validator.Validate, agNatsE natsEncoder.Encoder) *authDefaultUseCase {
-	return &authDefaultUseCase{
-		userD:    userD,
-		validate: validate,
-		agNatsE:  agNatsE,
-	}
+func NewAuthDefaultUseCase(userD dataservice.UserDataService, validate *validator.Validate,
+	apiNatsE, userNatsE natsEncoder.Encoder) *authDefaultUseCase {
+		return &authDefaultUseCase{
+			userD:     userD,
+			validate:  validate,
+			apiNatsE:  apiNatsE,
+			userNatsE: userNatsE,
+		}
 }
 
 func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
@@ -63,7 +64,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 	if err != nil {
 		p.Success = false
 		p.ErrorCode = UserIdDuplicateErrorCode
-		if err := h.agNatsE.Encode(p); err != nil {
+		if err := h.apiNatsE.Encode(p); err != nil {
 			log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
 		}
 		return
@@ -87,9 +88,10 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		p.Success = false
 		p.ErrorCode = errInt
 	}
-
-	if err := h.agNatsE.Encode(p); err != nil {
+	if err := h.apiNatsE.Encode(p); err != nil {
 		log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
 	}
+
+	// user.register 메시징 추가
 	return
 }
