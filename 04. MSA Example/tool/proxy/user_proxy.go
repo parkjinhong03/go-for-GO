@@ -28,7 +28,7 @@ func (up *UserServiceProxy) Write(p []byte) (i int, err error) {
 	if err = up.validate.Struct(&r); err != nil { return }
 
 	switch r.Required.Usage {
-	case "UserRegistryPublish":
+	case "UserRegistryRequest":
 		err = up.natsM.Publish("user.registry", p)
 	default:
 		err = errors.New(r.Required.Usage + " is undefined usage, so cannot be processed")
