@@ -11,3 +11,7 @@ type UserDataService interface {
 	Insert(user *model.Users) (result *model.Users, err error)
 	Remove(id uint32) (rowAffected int64, err error)
 }
+
+type UserInformDataService interface {
+	Insert(userInform *model.UserInform)
+}
