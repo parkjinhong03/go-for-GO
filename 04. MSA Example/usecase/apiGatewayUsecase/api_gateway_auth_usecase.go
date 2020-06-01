@@ -48,7 +48,7 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 			return nil
 		}
 		brFunc := func() error {
-			dl := deadline.New(time.Second)
+			dl := deadline.New(time.Second * 3)
 			return dl.Run(toFunc)
 		}
 		err := h.breakeR.Run(brFunc)
@@ -82,11 +82,13 @@ func (h *authServiceHandler) SignUpHandler(rw http.ResponseWriter, r *http.Reque
 	}
 
 	// 수신자 경합과 메시지 순서 유지 (인스턴스 복제 시)
-	// 중복 메시지 처리 -> 메시지 추적과 중복 메시지 솎아 	// 트랜잭셔널 메시징 기능 추가 -> DB 테이블을 메시지 큐로 활용내기
+	// 중복 메시지 처리 -> 메시지 추적과 중복 메시지 솎아
 	// 트랜잭셔널 메시징 기능 추가 -> DB 테이블을 메시지 큐로 활용
-	// 사가 트랜잭션에 대한 비격리 대책 -> 시맨틱 락 구현
+	// 사가 트랜잭션에 대한 비격리 대책 -> 시맨틱 락 구현 -> 완료
+	// user_id 중복 체크 -> req/resp | row 생성 -> pub/sub
 	// 비동기 처리 전환 및 푸시 기능 구햔
 	// 로깅 구현 (ElasticSearch, Logstash, Kibana)
+	// 비번 암호화 util 추가
 	enErr := h.natsE.Encode(protocol.AuthSignUpRequestProtocol{
 		Required: protocol.RequiredProtocol{
 			Usage:        "AuthSignUpRequest",
@@ -107,6 +109,7 @@ func (h *authServiceHandler) SignUpHandler(rw http.ResponseWriter, r *http.Reque
 			rw.WriteHeader(http.StatusBadRequest)
 		default:
 			log.Printf("some error occurs while encoding to message, err: %v\n", enErr.Err)
+			// 타임아웃 발생 시, 아래 구문에서 경고 로그가 뜸, 리펙토링 필요
 			rw.WriteHeader(http.StatusInternalServerError)
 		}
 		return
