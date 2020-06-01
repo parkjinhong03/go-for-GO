@@ -14,6 +14,14 @@ import (
 	"strings"
 )
 
+const (
+	CreatePending string = "CREATE_PENDING"
+	Created       string = "CREATED"
+	RemovePending string = "REMOVE_PENDING"
+	Removed		  string = "REMOVED"
+	Reject		  string = "REJECT"
+)
+
 type authDefaultUseCase struct {
 	userD    dataservice.UserDataService
 	validate *validator.Validate
@@ -40,24 +48,35 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		return
 	}
 
-	user := model.Users{
-		Model:   gorm.Model{},
-		UserId:  data.UserId,
-		UserPwd: "",
-	}
-	result, err := h.userD.Insert(&user)
-
 	p := protocol.ApiGatewaySignUpResponseProtocol{
 		Required:   protocol.RequiredProtocol{
 			Usage:        "AuthSignUpResponse",
 			InputChannel: msg.Reply,
 		},
 		RequestId:  data.RequestId,
-		ResultUser: result,
+		ResultUser: nil,
 		Success:    true,
 		ErrorCode:  0,
 	}
 
+	_, err := h.userD.FindByUserId(data.UserId)
+	if err != nil {
+		p.Success = false
+		p.ErrorCode = UserIdDuplicateErrorCode
+		if err := h.agNatsE.Encode(p); err != nil {
+			log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
+		}
+		return
+	}
+
+	user := model.Users{
+		Model:   gorm.Model{},
+		UserId:  data.UserId,
+		UserPwd: data.UserPwd,
+		Status:  CreatePending,
+	}
+	result, err := h.userD.Insert(&user)
+	p.ResultUser = result
 	if err != nil {
 		log.Printf("unable to insert new user in database, err: %v\n", err)
 		errArr := strings.Split(err.Error(), " ")
@@ -65,14 +84,12 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		if errArr[0] != "Error" || err != nil {
 			p.ErrorCode = ParsingFailureErrorCode // 에러 코드 파싱 실패
 		}
-		p.ResultUser = nil
 		p.Success = false
 		p.ErrorCode = errInt
 	}
 
-	err = h.agNatsE.Encode(p)
-	if err != nil {
-		log.Printf("some error occurs while proccessing that send message from auth.signup, err: %v\n", err)
+	if err := h.agNatsE.Encode(p); err != nil {
+		log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
 	}
 	return
 }
