@@ -100,7 +100,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 			InputChannel: "user.registry",
 		},
 		RequestId:    data.RequestId,
-		Id:           result.ID,
+		ID:           result.ID,
 		Name:         data.Name,
 		PhoneNumber:  data.PhoneNumber,
 		Introduction: data.Introduction,
