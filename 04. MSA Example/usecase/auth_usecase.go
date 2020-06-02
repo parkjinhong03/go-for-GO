@@ -91,8 +91,26 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 
 	if err := h.apiNatsE.Encode(p); err != nil {
 		log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
+		h.rejectSignUp(result)
 		return
 	}
+	if err := h.userNatsE.Encode(protocol.UserRegistryPublishProtocol{
+		Required:     protocol.RequiredProtocol{
+			Usage:        "UserRegistryRequest",
+			InputChannel: "user.registry",
+		},
+		RequestId:    data.RequestId,
+		Id:           result.ID,
+		Name:         data.Name,
+		PhoneNumber:  data.PhoneNumber,
+		Introduction: data.Introduction,
+		Email:        data.Email,
+	}); err != nil {
+		log.Printf("some error occurs while sending message from auth.signup to user.registry, err:%v\n", err)
+		h.rejectSignUp(result)
+		return
+	}
+	return
 }
 
 // 사가 트랜잭션 실패했을 경우의 보상 트랜잭션
