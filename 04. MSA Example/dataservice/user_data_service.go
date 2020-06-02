@@ -57,3 +57,14 @@ func (u *userDAO) Remove(id uint32) (int64, error) {
 	}
 	return db.RowsAffected, nil
 }
+
+func (u *userDAO) UpdateStatus(user *model.Users, status string) (*model.Users, error) {
+	var r *model.Users
+	txFunc := func(tx *gorm.DB) error {
+		if tx = tx.Model(user).Update("status", status); tx.Error == nil {
+			r = tx.Value.(*model.Users)
+		}
+		return tx.Error
+	}
+	return r, u.db.Transaction(txFunc)
+}
