@@ -4,10 +4,10 @@ import "github.com/jinzhu/gorm"
 
 type UserInform struct {
 	gorm.Model
-	Users Users `gorm:"foreignkey:UserPk"`
-	Name string `gorm:"NOT NULL;Type:VARCHAR(20)"`
-	PhoneNumber int `gorm:"NOT NULL;Type:INT(11)"`
-	Email string `gorm:"NOT NULL;Type:VARCHAR(20)"`
-	Introduction string `gorm:"VARCHAR(100)"`
-	NumOfBlog int `gorm:"NOT NULL;Type:UNSIGNED SMALLINT;DEFAULT:0"`
+	UserPk		 uint   `gorm:"Type:INT(10) UNSIGNED;"`
+	Name         string `gorm:"NOT NULL;Type:VARCHAR(20)"`
+	PhoneNumber  string `gorm:"NOT NULL;Type:CHAR(11)"`
+	Email        string `gorm:"NOT NULL;Type:VARCHAR(30)"`
+	Introduction string `gorm:"Type:VARCHAR(100)"`
+	NumOfBlog    int    `gorm:"NOT NULL;Type:SMALLINT UNSIGNED;DEFAULT:0"`
 }
