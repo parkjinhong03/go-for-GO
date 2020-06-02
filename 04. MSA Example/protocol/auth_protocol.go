@@ -1,12 +1,19 @@
 package protocol
 
-// 읽는 방법: A 서비스에게 B를 C하기 위한 Protocol
-// Ex) Auth 서비스에게 SignUp을 Request 하기 위한 Protocol
-type AuthSignUpRequestProtocol struct {
+import "MSA.example.com/1/model"
+
+type ApiGatewaySignUpResponseProtocol struct {
+	Required   RequiredProtocol
+	RequestId  string       `validate:"required"`
+	ResultUser *model.Users
+	Success    bool
+	ErrorCode  int
+}
+
+type UserRegistryRequestProtocol struct {
 	Required     RequiredProtocol
 	RequestId    string `validate:"required"`
-	UserId       string `validate:"required"`
-	UserPwd      string `validate:"required"`
+	ID           uint    `validate:"required"`
 	Name         string `validate:"required"`
 	PhoneNumber  string `validate:"required"`
 	Introduction string
