@@ -29,9 +29,12 @@ func main() {
 	u := usecase.NewAuthDefaultUseCase(userD, validate, apiNatsE, userNatsE)
 
 	_, err = natsM.Subscribe("auth.signup", u.SignUpMsgHandler)
-	// user.registry 응답 subscribe
 	if err != nil {
 		log.Fatalf("unable to subscribe auth.login from nats message broker, err: %v\n", err)
+	}
+	_, err = natsM.Subscribe("user.registry.reply", u.RegistryReplyMsgHandler)
+	if err != nil {
+		log.Fatalf("unable to subscribe user.registry.reply from nats message broker, err: %v\n", err)
 	}
 	log.Println("Auth message pub/sub server is completely started.")
 	runtime.Goexit()
