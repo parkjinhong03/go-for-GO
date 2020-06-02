@@ -25,6 +25,7 @@ func (e *jsonEncoder) Encode(v interface{}) error {
 	case *proxy.AuthServiceProxy:
 		switch v.(type) {
 		case protocol.AuthSignUpRequestProtocol:
+		case protocol.AuthRegistryResponseProtocol:
 		default:
 			return errors.New("this object cannot be encoded in your AuthServiceProxy")
 		}
@@ -36,7 +37,7 @@ func (e *jsonEncoder) Encode(v interface{}) error {
 		}
 	case *proxy.UserServiceProxy:
 		switch v.(type) {
-		case protocol.UserRegistryPublishProtocol:
+		case protocol.UserRegistryRequestProtocol:
 		default:
 			return errors.New("this object cannot be encoded in your UserServiceProxy")
 		}
