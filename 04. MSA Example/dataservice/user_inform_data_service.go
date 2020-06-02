@@ -10,9 +10,14 @@ type userInformDAO struct {
 }
 
 func NewUserInformDAO(db *gorm.DB) *userInformDAO {
-	return &userInformDAO{
-		db: db,
+	userInform := &model.UserInform{}
+	db.LogMode(false)
+	db.AutoMigrate(userInform)
+	if !db.HasTable(userInform) {
+		db.CreateTable(userInform)
 	}
+
+	return &userInformDAO{db: db}
 }
 
 func (ui *userInformDAO) Insert(userInform *model.UserInform) (*model.UserInform, error) {
