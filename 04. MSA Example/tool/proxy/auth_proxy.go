@@ -45,7 +45,7 @@ func (ap *AuthServiceProxy) Write(b []byte) (int, error) {
 		myErr.Err = err
 		myErr.ReturnMsg = msg
 		return 0, myErr
-	case "UserRegisterResponse":
+	case "UserRegistryResponse":
 		err := ap.natsM.Publish(r.Required.InputChannel, b)
 		return 0, err
 	default:
