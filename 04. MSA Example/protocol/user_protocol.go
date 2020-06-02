@@ -3,7 +3,7 @@ package protocol
 type UserRegistryPublishProtocol struct {
 	Required     RequiredProtocol
 	RequestId    string `validate:"required"`
-	Id           uint   `validate:"required"`
+	ID           uint    `validate:"required"`
 	Name         string `validate:"required"`
 	PhoneNumber  string `validate:"required"`
 	Introduction string
