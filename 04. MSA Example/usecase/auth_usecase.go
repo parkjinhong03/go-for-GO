@@ -88,10 +88,15 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		p.Success = false
 		p.ErrorCode = errInt
 	}
+
 	if err := h.apiNatsE.Encode(p); err != nil {
 		log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
+		return
 	}
+}
 
-	// user.register 메시징 추가
-	return
+// 사가 트랜잭션 실패했을 경우의 보상 트랜잭션
+func (h *authDefaultUseCase) rejectSignUp(user *model.Users) {
+	log.Println("executes a compensation transaction because saga transaction has failed.")
+	_, _ = h.userD.UpdateStatus(user, Reject)
 }
