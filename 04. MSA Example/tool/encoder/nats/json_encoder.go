@@ -34,6 +34,12 @@ func (e *jsonEncoder) Encode(v interface{}) error {
 		default:
 			return errors.New("this object cannot be encoded in your ApiGatewayProxy")
 		}
+	case *proxy.UserServiceProxy:
+		switch v.(type) {
+		case protocol.UserRegistryPublishProtocol:
+		default:
+			return errors.New("this object cannot be encoded in your UserServiceProxy")
+		}
 	default:
 		return errors.New("it is a proxy or incorrect proxy that this object cannot handle")
 	}
