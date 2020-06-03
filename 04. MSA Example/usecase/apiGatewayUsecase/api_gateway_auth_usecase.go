@@ -11,6 +11,7 @@ import (
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/eapache/go-resiliency/deadline"
 	"github.com/go-playground/validator/v10"
+	"github.com/nats-io/nats.go"
 	"log"
 	"net/http"
 	"strings"
@@ -54,6 +55,7 @@ func (h *authServiceHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) 
 		err := h.breakeR.Run(brFunc)
 		switch err {
 		case breaker.ErrBreakerOpen:
+			log.Println("api/user/signup service is not working now!!")
 			rw.WriteHeader(http.StatusServiceUnavailable)
 			return
 		case deadline.ErrTimedOut:
@@ -104,6 +106,10 @@ func (h *authServiceHandler) SignUpHandler(rw http.ResponseWriter, r *http.Reque
 	}).(*customError.ProxyWriteError)
 
 	if enErr.Err != nil {
+		if enErr.Err == nats.ErrTimeout {
+			log.Printf("request time out from user.signup!!, err: %v\n", enErr.Err)
+			return
+		}
 		switch enErr.Err.(type) {
 		case validator.ValidationErrors:
 			rw.WriteHeader(http.StatusBadRequest)
