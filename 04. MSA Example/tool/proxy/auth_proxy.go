@@ -41,7 +41,7 @@ func (ap *AuthServiceProxy) Write(b []byte) (int, error) {
 	var err error
 	switch r.Required.Usage {
 	case "AuthSignUpRequest":
-		msg, err := ap.natsM.Request(r.Required.InputChannel, b, 5 * time.Second)
+		msg, err := ap.natsM.Request(r.Required.InputChannel, b, 3 * time.Second)
 		myErr.Err = err
 		myErr.ReturnMsg = msg
 		return 0, myErr
