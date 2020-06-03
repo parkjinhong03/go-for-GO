@@ -6,11 +6,11 @@ import (
 )
 
 type UserDataService interface {
-	Find(id uint32) (user *model.Users, err error)
-	FindByUserId(userId string) (user *model.Users, err error)
+	Find(id uint) (user *model.Users, exist bool)
+	FindByUserId(userId string) (user *model.Users, exist bool)
 	Insert(user *model.Users) (result *model.Users, err error)
-	Remove(id uint32) (rowAffected int64, err error)
-	UpdateStatus(user *model.Users, status string) (result *model.Users, err error)
+	Remove(id uint) (rowAffected int64, err error)
+	UpdateStatus(id uint, status string) (result *model.Users, err error)
 }
 
 type UserInformDataService interface {
