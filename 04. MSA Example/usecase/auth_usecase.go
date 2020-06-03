@@ -60,8 +60,8 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		ErrorCode:  0,
 	}
 
-	_, err := h.userD.FindByUserId(data.UserId)
-	if err != nil {
+	_, exist := h.userD.FindByUserId(data.UserId)
+	if exist {
 		p.Success = false
 		p.ErrorCode = UserIdDuplicateErrorCode
 		if err := h.apiNatsE.Encode(p); err != nil {
@@ -70,6 +70,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		return
 	}
 
+	// row 생성 전 동기 호출 응답 추가
 	user := model.Users{
 		Model:   gorm.Model{},
 		UserId:  data.UserId,
@@ -94,7 +95,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		h.rejectSignUp(result)
 		return
 	}
-	if err := h.userNatsE.Encode(protocol.UserRegistryPublishProtocol{
+	if err := h.userNatsE.Encode(protocol.UserRegistryRequestProtocol{
 		Required:     protocol.RequiredProtocol{
 			Usage:        "UserRegistryRequest",
 			InputChannel: "user.registry",
@@ -116,5 +117,30 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 // 사가 트랜잭션 실패했을 경우의 보상 트랜잭션
 func (h *authDefaultUseCase) rejectSignUp(user *model.Users) {
 	log.Println("executes a compensation transaction because saga transaction has failed.")
-	_, _ = h.userD.UpdateStatus(user, Reject)
+	_, _ = h.userD.UpdateStatus(user.ID, Reject)
+}
+
+func (h *authDefaultUseCase) RegistryReplyMsgHandler(msg *nats.Msg) {
+	data := protocol.AuthRegistryResponseProtocol{}
+	if err := json.Unmarshal(msg.Data, &data); err != nil  {
+		log.Printf("something occurs error while unmarshal json byte in struct, err: %v\n", err)
+		return
+	}
+	if err := h.validate.Struct(&data); err != nil  {
+		log.Printf("something occurs error while validating struct data, err: %v\n", err)
+		return
+	}
+	user, exist := h.userD.Find(data.ResultUserInform.UserPk)
+	if !exist {
+		log.Println("There is no user row with that ID.")
+		return
+	}
+
+	// protocol 수정 필요 (결과 객체 삭제)
+	if data.Success {
+		_, _ = h.userD.UpdateStatus(data.ResultUserInform.UserPk, Created)
+	} else {
+		log.Printf("response error from user.registry, error code: %v\n", data.ErrorCode)
+		h.rejectSignUp(user)
+	}
 }
