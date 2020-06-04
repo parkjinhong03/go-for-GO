@@ -38,7 +38,6 @@ func (u *userUseCase) RegistryMsgHandler(msg *nats.Msg) {
 		log.Printf("some error occurs error while validating struct data, err: %v\n", err)
 		return
 	}
-
 	userInform := model.UserInform{
 		UserPk:       data.ID,
 		Name:         data.Name,
@@ -46,17 +45,17 @@ func (u *userUseCase) RegistryMsgHandler(msg *nats.Msg) {
 		Email:        data.Email,
 		Introduction: data.Introduction,
 	}
-	result, err := u.userInformDAO.Insert(&userInform)
+	_, err := u.userInformDAO.Insert(&userInform)
 
 	p := protocol.AuthRegistryResponseProtocol{
 		Required: protocol.RequiredProtocol{
 			Usage:        "UserRegistryResponse",
 			InputChannel: "user.registry.reply",
 		},
-		RequestId:    data.RequestId,
-		ResultUserInform: result,
-		Success:      true,
-		ErrorCode:    0,
+		RequestId: data.RequestId,
+		UserPk:    data.ID,
+		Success:   true,
+		ErrorCode: 0,
 	}
 
 	if err != nil {
