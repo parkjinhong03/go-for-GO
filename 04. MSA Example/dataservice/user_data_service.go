@@ -2,7 +2,6 @@ package dataservice
 
 import (
 	"MSA.example.com/1/model"
-	"errors"
 	"github.com/jinzhu/gorm"
 )
 
@@ -53,7 +52,6 @@ func (u *userDAO) Insert(user *model.Users) (*model.Users, error) {
 	return r, u.db.Transaction(txFunc)
 }
 
-
 func (u *userDAO) Remove(id uint) (int64, error) {
 	db := u.db.Where("id = ?", id).Delete(model.Users{})
 	if db.Error != nil {
@@ -62,11 +60,7 @@ func (u *userDAO) Remove(id uint) (int64, error) {
 	return db.RowsAffected, nil
 }
 
-func (u *userDAO) UpdateStatus(id uint, status string) (*model.Users, error) {
-	user, exist := u.Find(id)
-	if !exist {
-		return nil, errors.New("A user with that ID is not exists")
-	}
+func (u *userDAO) UpdateStatus(user *model.Users, status string) (*model.Users, error) {
 	if err := u.db.Model(user).Update("status", status).Error; err != nil {
 		return nil, err
 	}
