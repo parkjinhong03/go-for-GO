@@ -138,12 +138,13 @@ func (h *authDefaultUseCase) RegistryReplyMsgHandler(msg *nats.Msg) {
 		log.Println("There is no user row with that ID.")
 		return
 	}
-
-	// protocol 수정 필요 (결과 객체 삭제)
-	if data.Success {
-		_, _ = h.userD.UpdateStatus(user, Created)
-	} else {
+	if !data.Success {
 		log.Printf("response error from user.registry, error code: %v\n", data.ErrorCode)
+		h.rejectSignUp(user)
+		return
+	}
+
+	if _, err := h.userD.UpdateStatus(user, Created); err != nil {
 		h.rejectSignUp(user)
 	}
 }
