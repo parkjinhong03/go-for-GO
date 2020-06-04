@@ -10,7 +10,7 @@ type UserDataService interface {
 	FindByUserId(userId string) (user *model.Users, exist bool)
 	Insert(user *model.Users) (result *model.Users, err error)
 	Remove(id uint) (rowAffected int64, err error)
-	UpdateStatus(id uint, status string) (result *model.Users, err error)
+	UpdateStatus(user *model.Users, status string) (result *model.Users, err error)
 }
 
 type UserInformDataService interface {
