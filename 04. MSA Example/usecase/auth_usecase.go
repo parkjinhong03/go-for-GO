@@ -77,11 +77,11 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 		UserPwd: data.UserPwd,
 		Status:  CreatePending,
 	}
-	result, err := h.userD.Insert(&user)
+	result, insertErr := h.userD.Insert(&user)
 	p.ResultUser = result
-	if err != nil {
-		log.Printf("unable to insert new user in database, err: %v\n", err)
-		errArr := strings.Split(err.Error(), " ")
+	if insertErr != nil {
+		log.Printf("unable to insert new user in database, err: %v\n", insertErr)
+		errArr := strings.Split(insertErr.Error(), " ")
 		errInt, err := strconv.Atoi(errArr[1][:4])
 		if errArr[0] != "Error" || err != nil {
 			p.ErrorCode = ParsingFailureErrorCode // 에러 코드 파싱 실패
@@ -93,6 +93,9 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 	if err := h.apiNatsE.Encode(p); err != nil {
 		log.Printf("some error occurs while sending message from auth.signup to api gateway, err: %v\n", err)
 		h.rejectSignUp(result)
+		return
+	}
+	if insertErr != nil {
 		return
 	}
 	if err := h.userNatsE.Encode(protocol.UserRegistryRequestProtocol{
@@ -117,7 +120,7 @@ func (h *authDefaultUseCase) SignUpMsgHandler(msg *nats.Msg) {
 // 사가 트랜잭션 실패했을 경우의 보상 트랜잭션
 func (h *authDefaultUseCase) rejectSignUp(user *model.Users) {
 	log.Println("executes a compensation transaction because saga transaction has failed.")
-	_, _ = h.userD.UpdateStatus(user.ID, Reject)
+	_, _ = h.userD.UpdateStatus(user, Reject)
 }
 
 func (h *authDefaultUseCase) RegistryReplyMsgHandler(msg *nats.Msg) {
@@ -130,7 +133,7 @@ func (h *authDefaultUseCase) RegistryReplyMsgHandler(msg *nats.Msg) {
 		log.Printf("something occurs error while validating struct data, err: %v\n", err)
 		return
 	}
-	user, exist := h.userD.Find(data.ResultUserInform.UserPk)
+	user, exist := h.userD.Find(data.UserPk)
 	if !exist {
 		log.Println("There is no user row with that ID.")
 		return
@@ -138,7 +141,7 @@ func (h *authDefaultUseCase) RegistryReplyMsgHandler(msg *nats.Msg) {
 
 	// protocol 수정 필요 (결과 객체 삭제)
 	if data.Success {
-		_, _ = h.userD.UpdateStatus(data.ResultUserInform.UserPk, Created)
+		_, _ = h.userD.UpdateStatus(user, Created)
 	} else {
 		log.Printf("response error from user.registry, error code: %v\n", data.ErrorCode)
 		h.rejectSignUp(user)
