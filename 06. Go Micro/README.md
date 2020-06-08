@@ -1,13 +1,37 @@
 # **Go Micro**
 ## **시작하기 전에...**
-- 위대하신 [**Asim Aslam**](https://medium.com/@asimaslam)님께서 많은 기여를 하신 프레임워크로, [**Go Micro 공식 문서**](https://dev.micro.mu/)와 [**Codemotion의 강의 영상**](https://www.youtube.com/watch?v=OcjMi9cXItY), 그리고 Che Dan
-님의 [**Micro In Action**](https://itnext.io/micro-in-action-part-5-message-broker-a3decf07f26a)에서
-- 많은 **유용한 지식과 도움**을 받을 수 있었고, 덕분에 Go Micro를 프로젝트에 써볼 **용기**가 생겼습니다!
+- [**Asim Aslam**](https://medium.com/@asimaslam)님 외 네 분으로 구성되어있는 [**micro.mu**](https://micro.mu/)에서 만든 프레임워크로, 
+- [**공식 문서**](https://dev.micro.mu/)와 [**Codemotion**](https://www.youtube.com/watch?v=OcjMi9cXItY), 그리고 [**Micro In Action**](https://itnext.io/micro-in-action-getting-started-a79916ae3cac)에서 많은 많은 도움을 받았습니다.
 
 <br>
 
 ---
 ## **go-micro와 micro??**
-- **go-micro**는 실제 **Golang 코드로 microservice를 개발**할 때 사용되는 프레임워크로, MSA에서 자주 쓰이는 공통 패턴들을 사용하기 쉽도록 **추상화 형태**로 제공해줍니다. 이 서비스들의 일반적인 유형은 **gRPC**입니다. 
-- **micro**는 **command line tool**로, go-micro를 이용하여 개발한 서비스를 실행시키기 위해 필수로 사용해야 되는것은 아니지만, 여러 서비스들을 **개발하고 관리하는데 매우 편리함을 제공**해줍니다. 예를 들어, 템플릿 프로젝트 생성, 런타임 상태 검사, 서비스 목록 및 호출 등등의 기능들이 있습니다. 참고로 이 도구는 **go-micro 기반**입니다.
+- [**go-micro**](https://github.com/micro/go-micro)는 실제 **Golang 코드로 microservice를 개발**할 때 사용되는 프레임워크로, MSA에서 자주 쓰이는 공통 패턴들을 사용하기 쉽도록 **추상화 형태**로 제공해줍니다. 이 서비스들의 일반적인 유형은 **gRPC**입니다. 
+- [**micro**](https://github.com/micro/micro)는 **command line tool**로, go-micro를 이용하여 개발한 서비스를 실행시키기 위해 필수로 사용해야 되는것은 아니지만, 여러 서비스들을 **개발하고 관리하는데 매우 편리함을 제공**해줍니다. 예를 들어, 템플릿 프로젝트 생성, 런타임 상태 검사, 서비스 목록 및 호출 등등의 기능들이 있습니다. 참고로 이 도구는 **go-micro 기반**입니다.
+- 참고로 [**go-plugin**](https://github.com/micro/go-plugins)이라는 것도 있는데, 이는 앞에서도 말씀드렸듯이, go-micro가 서비스들을 **추상화 형태**로 제공하기 때문에 가능한 **일련의 플러그인**입니다. Service Discovery, Async Messaging, Transport Protocol 등등의 기능들을 **사용자가 원하는 형태로 사용**할 수 있게 제공해줍니다.
 
+
+<br>
+
+---
+## **go-micro의 아키텍처**
+**go-micro의 Architecture**
+![Architecture](./Architecture.png)
+
+**go-micro**는 **마이크로 서비스 개발 및 분산 시스템 환경 구축**을 단순화하는 것에 초점을 두었습니다. 따라서 그 철학에 맞게 분산 시스템에서 항상 필요한 작업들을 모두 제공해줍니다. 하지만 여기서 더 중요한 것은 이러한 공통 패턴들을 모두 **인터페이스로 추상화**하였다는 것 입니다. 따라서 사용자가 세부 구현 정보를 알 필요 없이, **유연하고 강력한 시스템**을 매우 빠르게 구축할 수 있습니다. 중요한 몇몇 인터페이스들은 다음과 같습니다.
+
+- ### **Service Discovery**
+    **Service Discovery**는 동적으로 url이 바뀌는 서비스에 **동기 IPC**로 호출을 하기 위해 필수로 구현해야하는 기능입니다. 이 기능을 **추상화한 인터페이스**는 [**go-micro**](https://github.com/micro/go-micro/blob/master/registry/registry.go#L20)에서 보실 수 있습니다. 이 인터페이스를 구현한 모든 객체들은 서비스에서 **Service Discovery 기능의 수행 주체**로 사용될 수 있습니다. [**go-plugins**](https://github.com/micro/go-plugins/tree/master/registry)에서 etcd, consul, zookeeper등과 같은 많은 구현 객체들을 확인하실 수 있습니다. 참고로 설정을 하지 않을 경우, **multicase DNS(mdns)** 기반인 Service Discovery가 기본으로 사용됩니다.
+
+- ### **Async Messaging**
+    **Async Messaging**은 서비스들끼리의 **느슨한 결합과 강력한 시스템**을 구축하기 위한 핵심 기술입니다. 이 기능을 **추상화한 인터페이스** 또한 [**go-micro**](https://github.com/micro/go-micro/blob/master/broker/broker.go#L5)에서 보실 수 있습니다. 이 인터페이스 구현 객체도 [**go-plugins**](https://github.com/micro/go-plugins/tree/master/broker)에서 확인하실 수 있으며, 대표적으로 **RabbitMQ, Kafka, NSQ, NATS** 등등이 있습니다. 참고로 **HTTP 기반의 구현 객체**가 기본으로 사용되고, 추가 설정이 필요하지 않습니다.
+
+- ### **Codec**
+    **Codec**은 마이크로 서비스간의 통신을 위해서 메시지를 **인코딩 및 디코딩** 해주는 기술입니다. 이 기능을 **추상화한 인터페이스**는 [**go-micro**](https://github.com/micro/go-micro/blob/master/codec/codec.go#L30)에서 보실 수 있고, 구현 객체들은 [**go-micro**](https://github.com/micro/go-micro/tree/master/codec)와 [**go-plugins**](https://github.com/micro/go-plugins/tree/master/codec)에서 보실 수 있습니다. 현재 json, bson, msgpack등 많은 Codec들을 지원하고 있습니다.
+
+- ### **others...**
+    - **Server** - 마이크로서비스의 **서비스들을 정의**하기 위해 쓰입니다.
+    - **Transport** - **전송 프로토콜**을 정의하기 위해 쓰입니다.
+    - **Selector** - 로드 밸런싱 전략 구현을 위해 **서비스 선택 논리**를 추상화한 것 입니다.
+    - **Wrapper** - 서버와 클라이언트의 요청을 래핑하는 **미들웨어**를 정의하기 위해 쓰입니다.
