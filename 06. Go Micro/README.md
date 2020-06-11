@@ -47,3 +47,40 @@
 - **Post Service**(examples.blog.service.post) - 블로그의 **게시글 정보**를 관리하는 서비스
 - **Visitor Service**(examples.blog.service.visitor) - 블로그의 **방문자 정보**를 관리하는 서비스
 - **Subscribe Service**(examples.blog.service.subscribe) - 블로그의 **구독 관련 정보**를 관리하는 서비스
+
+<br>
+
+---
+## **적용할 패턴**
+> 앞으로 나오는 **여러 패턴**들과 **결정 사항**들은 [**마이크로서비스 패턴**](https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=228694618)책을 통해 알 수 있었으며, 이 책을 한번 **읽어보시길 추천**합니다!
+- ### **통신 패턴**
+    - **통신 스타일**
+        - **비동기 메시징 -> 사용 O** *(메시지 순서 유지, 중복 메시지 처리 기능 구현 예정)*
+        - **동기 IPC -> 사용 O** *(protocol buffer를 이용한 gRPC 사용 예정)*
+    - **디스커버리**
+        - **서버 사이드 디스커버리 -> 사용 O**
+        - **클라이언트 사이드 디스커버리 -> 사용 X** *(why? 내가 직접 구현해보고 싶어서..ㅎㅎ)*
+        - **서드파티 등록 -> 사용 O**
+        - **자가 등록 -> 사용 X** *(why? Go Micro의 registra를 사용할 예정!)*
+    - **신뢰성**
+        - **회로 차단기 -> 사용 O** *(타임 아웃과 함께 사용할 예정)*
+    - **트랜잭셔널 메시징**
+        - **트랜잭션 로그 테일링 -> 사용 O** *(디비지움, Debezium을 이용할 예정!)*
+        - **폴링 발행기 패턴 -> 사용 X** *(why? 자주 폴링할 경우 비용이 유발되기 때문)*
+
+- ### **데이터 일관성 패턴**
+    - **사가 패턴 -> 사용 O** *(추후에 이벤트 소싱, 애그리거트 학습 후 사용해볼 예정)*
+    - **분산 트랜잭션 -> 사용 X** *(why? 기술 선택의 제약성, 동기 통신으로 인한 가용성 저하)*
+
+- ### **관측성 패턴**
+    - **헬스 체크 API -> 사용 O** *(이 기능도 이번엔 꼭 구현해보고 싶은데, 어떻게 해야 할지 감이 안옵니다..ㅠㅠ)*
+    - **로그 수집 -> 사용 O** *([ElasticSearch](https://www.elastic.co/kr/elasticsearch/service?elektra=home&storm=sub1), [Logstash](https://www.elastic.co/kr/logstash), [Kibana](https://www.elastic.co/kr/kibana)로 구축할 예정)*
+    - **분산 추적 -> 사용 O** *(Golang 오픈소스 프로젝트인 [Jaeger](https://www.jaegertracing.io/)로 구축할 예정)*
+    
+<br>
+
+---
+## **앞으로 배울 패턴**
+- ### **데이터 쿼리 패턴**
+- ### **서비스 배포 패턴**
+- ### **서비스 테스트 자동화 패턴**
