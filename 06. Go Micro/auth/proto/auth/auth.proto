@@ -3,21 +3,23 @@ syntax = "proto3";
 package examples.blog.service.auth;
 
 service Auth {
-	rpc Call(Request) returns (Response) {}
+    rpc CreateAuth(CreateAuthRequest) returns (CreateAuthResponse) {}
 	rpc Stream(StreamingRequest) returns (stream StreamingResponse) {}
 	rpc PingPong(stream Ping) returns (stream Pong) {}
 }
 
+message CreateAuthRequest {
+    string userId = 1;
+    string userPw = 2;
+}
+
+message CreateAuthResponse {
+    int64 status = 1;
+    string message = 2;
+}
+
 message Message {
 	string say = 1;
-}
-
-message Request {
-	string name = 1;
-}
-
-message Response {
-	string msg = 1;
 }
 
 message StreamingRequest {

@@ -34,7 +34,7 @@ var _ server.Option
 // Client API for Auth service
 
 type AuthService interface {
-	Call(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
+	CreateAuth(ctx context.Context, in *CreateAuthRequest, opts ...client.CallOption) (*CreateAuthResponse, error)
 	Stream(ctx context.Context, in *StreamingRequest, opts ...client.CallOption) (Auth_StreamService, error)
 	PingPong(ctx context.Context, opts ...client.CallOption) (Auth_PingPongService, error)
 }
@@ -51,9 +51,9 @@ func NewAuthService(name string, c client.Client) AuthService {
 	}
 }
 
-func (c *authService) Call(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error) {
-	req := c.c.NewRequest(c.name, "Auth.Call", in)
-	out := new(Response)
+func (c *authService) CreateAuth(ctx context.Context, in *CreateAuthRequest, opts ...client.CallOption) (*CreateAuthResponse, error) {
+	req := c.c.NewRequest(c.name, "Auth.CreateAuth", in)
+	out := new(CreateAuthResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -164,14 +164,14 @@ func (x *authServicePingPong) Recv() (*Pong, error) {
 // Server API for Auth service
 
 type AuthHandler interface {
-	Call(context.Context, *Request, *Response) error
+	CreateAuth(context.Context, *CreateAuthRequest, *CreateAuthResponse) error
 	Stream(context.Context, *StreamingRequest, Auth_StreamStream) error
 	PingPong(context.Context, Auth_PingPongStream) error
 }
 
 func RegisterAuthHandler(s server.Server, hdlr AuthHandler, opts ...server.HandlerOption) error {
 	type auth interface {
-		Call(ctx context.Context, in *Request, out *Response) error
+		CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error
 		Stream(ctx context.Context, stream server.Stream) error
 		PingPong(ctx context.Context, stream server.Stream) error
 	}
@@ -186,8 +186,8 @@ type authHandler struct {
 	AuthHandler
 }
 
-func (h *authHandler) Call(ctx context.Context, in *Request, out *Response) error {
-	return h.AuthHandler.Call(ctx, in, out)
+func (h *authHandler) CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error {
+	return h.AuthHandler.CreateAuth(ctx, in, out)
 }
 
 func (h *authHandler) Stream(ctx context.Context, stream server.Stream) error {
