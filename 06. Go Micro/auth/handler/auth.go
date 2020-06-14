@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"auth/dao"
+	"auth/model"
 	"context"
-	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/mock"
 	"net/http"
 
 	log "github.com/micro/go-micro/v2/logger"
@@ -11,16 +13,31 @@ import (
 )
 
 type auth struct{
-	db *gorm.DB
+	adc *dao.AuthDAOCreator
 }
 
-func NewAuth(db *gorm.DB) *auth {
+func NewAuth(adc *dao.AuthDAOCreator) *auth {
 	return &auth{
-		db: db,
+		adc: adc,
 	}
 }
 
 func (e *auth) CreateAuth(ctx context.Context, req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) error {
+	var ad dao.AuthDAOService
+	if env := ctx.Value("env"); env == "test" {
+		ad = e.adc.GetTestAuthDAO(*ctx.Value("mockStore").(*mock.Mock))
+	} else {
+		ad = e.adc.GetDefaultAuthDAO()
+	}
+
+	if _, err := ad.Insert(&model.Auth{
+		UserId: req.UserId,
+		UserPw: req.UserPw,
+	}); err != nil {
+		return err
+	}
+
+	ad.Commit()
 	log.Info("Received Auth.CreateAuth request")
 	rsp.Status = http.StatusOK
 	rsp.Message = "test"
