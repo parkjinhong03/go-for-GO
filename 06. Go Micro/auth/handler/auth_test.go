@@ -27,3 +27,22 @@ func setup() (h auth, ctx context.Context, req *proto.CreateAuthRequest, rsp *pr
 	rsp = &proto.CreateAuthResponse{}
 	return
 }
+
+func TestAuthCreateInsertOne(t *testing.T) {
+	h, ctx, req, rsp := setup()
+	req.UserId = "testId"
+	req.UserPw = "testPwd"
+
+	mockStore.On("Insert", &model.Auth{
+		UserId: "testId",
+		UserPw: "testPwd",
+	}).Return(&model.Auth{}, errors.New(""))
+	mockStore.On("Commit").Return(&gorm.DB{})
+
+	if err := h.CreateAuth(ctx, req, rsp); err != nil {
+		log.Fatal(err)
+	}
+
+	mockStore.AssertExpectations(t)
+	assert.Equal(t, int64(http.StatusOK), rsp.Status)
+}
