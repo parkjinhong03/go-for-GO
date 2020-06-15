@@ -2,14 +2,18 @@ package handler
 
 import (
 	"auth/dao"
+	"auth/dao/user"
 	"auth/model"
 	"context"
+	log "github.com/micro/go-micro/v2/logger"
 	"github.com/stretchr/testify/mock"
 	"net/http"
 
-	log "github.com/micro/go-micro/v2/logger"
-
 	proto "auth/proto/auth"
+)
+
+const (
+	StatusUserIdDuplicate = 470
 )
 
 type auth struct{
@@ -24,23 +28,31 @@ func NewAuth(adc *dao.AuthDAOCreator) *auth {
 
 func (e *auth) CreateAuth(ctx context.Context, req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) error {
 	var ad dao.AuthDAOService
-	if env := ctx.Value("env"); env == "test" {
-		ad = e.adc.GetTestAuthDAO(*ctx.Value("mockStore").(*mock.Mock))
-	} else {
+	switch ctx.Value("env") {
+	case "test":
+		mockStore := ctx.Value("mockStore").(*mock.Mock)
+		ad = e.adc.GetTestAuthDAO(mockStore)
+	default:
 		ad = e.adc.GetDefaultAuthDAO()
 	}
 
-	if _, err := ad.Insert(&model.Auth{
+	_, err := ad.Insert(&model.Auth{
 		UserId: req.UserId,
 		UserPw: req.UserPw,
-	}); err != nil {
-		return err
+	})
+
+	switch err {
+	case nil:
+		rsp.Status = http.StatusCreated
+		rsp.Message = "create auth success"
+		ad.Commit()
+	case user.IdDuplicateError:
+		rsp.Status = StatusUserIdDuplicate
+		rsp.Message = user.IdDuplicateError.Error()
+		ad.Rollback()
 	}
 
-	ad.Commit()
 	log.Info("Received Auth.CreateAuth request")
-	rsp.Status = http.StatusOK
-	rsp.Message = "test"
 	return nil
 }
 
