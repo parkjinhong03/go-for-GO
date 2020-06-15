@@ -6,13 +6,19 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type DefaultDAO struct {
-	*gorm.DB
+type defaultDAO struct {
+	db *gorm.DB
 }
 
-func (d *DefaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
+func NewDefaultDAO(db *gorm.DB) *defaultDAO {
+	return &defaultDAO{
+		db: db,
+	}
+}
+
+func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 	u.Status = CreatePending
-	r := d.Create(u)
+	r := d.db.Create(u)
 	if r.Error == nil { result = r.Value.(*model.Auth); return }
 
 	code, err := parser.DBErrorParse(r.Error.Error())
@@ -25,4 +31,12 @@ func (d *DefaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 		err = UnknownError
 	}
 	return
+}
+
+func (d *defaultDAO) Commit() *gorm.DB {
+	return d.db.Commit()
+}
+
+func (d *defaultDAO) Rollback() *gorm.DB {
+	return d.db.Rollback()
 }
