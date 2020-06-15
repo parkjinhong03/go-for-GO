@@ -6,23 +6,30 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type TestDAO struct {
-	mock.Mock
-	auths []model.Auth
+var AuthArr []model.Auth
+
+type testDAO struct {
+	mock *mock.Mock
 }
 
-func (td *TestDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
-	td.Mock.Called(auth)
+func NewTestDAO(mock *mock.Mock) *testDAO {
+	return &testDAO{
+		mock: mock,
+	}
+}
 
-	for _, a := range td.auths {
-		if a != *auth { continue }
+func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
+	td.mock.Called(auth)
+
+	for _, a := range AuthArr {
+		if a.UserId != (*auth).UserId { continue }
 		err = IdDuplicateError
 		return
 	}
 
 	auth.Status = CreatePending
-	auth.ID = uint(len(td.auths) + 1)
-	td.auths = append(td.auths, *auth)
+	auth.ID = uint(len(AuthArr) + 1)
+	AuthArr = append(AuthArr, *auth)
 	result = auth
 	return
 }
