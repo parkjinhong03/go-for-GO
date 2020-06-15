@@ -33,13 +33,9 @@ type AuthDAOService interface {
 
 func (dc *AuthDAOCreator) GetDefaultAuthDAO() AuthDAOService {
 	tx := dc.db.Begin()
-	return &user.DefaultDAO{
-		DB: tx,
-	}
+	return user.NewDefaultDAO(tx)
 }
 
-func (dc *AuthDAOCreator) GetTestAuthDAO(mock mock.Mock) AuthDAOService {
-	return &user.TestDAO{
-		Mock: mock,
-	}
+func (dc *AuthDAOCreator) GetTestAuthDAO(mock *mock.Mock) AuthDAOService {
+	return user.NewTestDAO(mock)
 }
