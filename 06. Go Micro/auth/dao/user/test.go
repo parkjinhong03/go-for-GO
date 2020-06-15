@@ -34,12 +34,10 @@ func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
 	return
 }
 
-func (td *TestDAO) Commit() *gorm.DB {
-	td.Mock.Called()
-	return nil
+func (td *testDAO) Commit() *gorm.DB {
+	return td.mock.Called().Get(0).(*gorm.DB)
 }
 
-func (td *TestDAO) Rollback() *gorm.DB {
-	td.Mock.Called()
-	return nil
+func (td *testDAO) Rollback() *gorm.DB {
+	return td.mock.Called().Get(0).(*gorm.DB)
 }
