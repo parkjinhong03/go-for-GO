@@ -7,6 +7,7 @@ import (
 	proto "auth/proto/auth"
 	"context"
 	"errors"
+	"github.com/go-playground/validator/v10"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,52 +17,28 @@ import (
 
 var mockStore mock.Mock
 var ctx context.Context
-var h auth
+var h *auth
 
 func init() {
 	ctx = context.WithValue(context.Background(), "env", "test")
 	ctx = context.WithValue(ctx, "mockStore", &mockStore)
-	h = auth{
-		adc: dao.NewAuthDAOCreator(nil),
-	}
+	adc := dao.NewAuthDAOCreator(nil)
+	validate := validator.New()
+	h = NewAuth(adc, validate)
 }
 
 func setup() (req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) {
 	mockStore = mock.Mock{}
+	user.AuthArr = nil
 	req = &proto.CreateAuthRequest{}
 	rsp = &proto.CreateAuthResponse{}
 	return
 }
 
-func prepareInsertRequest(req *proto.CreateAuthRequest, id, pw string) {
-	req.UserId = id
-	req.UserPw = pw
-
-	mockStore.On("Insert", &model.Auth{
-		UserId: id,
-		UserPw: pw,
-	}).Return(&model.Auth{}, errors.New(""))
-}
-
-func TestAuthCreateInsertOne(t *testing.T) {
-	user.AuthArr = nil
-	req, resp := setup()
-	prepareInsertRequest(req, "testId1", "testPw1")
-	mockStore.On("Commit").Return(&gorm.DB{})
-
-	if err := h.CreateAuth(ctx, req, resp); err != nil {
-		resp.Status = http.StatusInternalServerError
-	}
-
-	mockStore.AssertExpectations(t)
-	assert.Equal(t, int64(http.StatusCreated), resp.Status)
-}
-
-func TestAuthCreateInsertTwoAndMore(t *testing.T) {
-	user.AuthArr = nil
+func TestAuthCreateManySuccess(t *testing.T) {
 	req, resp := setup()
 
-	requests := []struct {
+	tests := []struct {
 		id          string
 		pw          string
 		afterMethod string
@@ -85,11 +62,111 @@ func TestAuthCreateInsertTwoAndMore(t *testing.T) {
 		},
 	}
 
-	for _, request := range requests {
-		prepareInsertRequest(req, request.id, request.pw)
-		mockStore.On(request.afterMethod).Return(&gorm.DB{})
+	for _, test := range tests {
+		req.UserId = test.id
+		req.UserPw = test.pw
+
+		mockStore.On("Insert", &model.Auth{
+			UserId: test.id,
+			UserPw: test.pw,
+		}).Return(&model.Auth{}, errors.New(""))
+		mockStore.On(test.afterMethod).Return(&gorm.DB{})
+
 		_ = h.CreateAuth(ctx, req, resp)
-		assert.Equal(t, request.expectCode, resp.Status)
+		assert.Equal(t, test.expectCode, resp.Status)
+	}
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestAuthCreateUserIdDuplicateError(t *testing.T) {
+	req, resp := setup()
+
+	tests := []struct {
+		id          string
+		pw          string
+		afterMethod string
+		expectCode  int64
+	}{
+		{
+			id:          "testId1",
+			pw:          "testPw1",
+			afterMethod: "Commit",
+			expectCode:  int64(http.StatusCreated),
+		}, {
+			id:          "testId1",
+			pw:          "testPw1",
+			afterMethod: "Rollback",
+			expectCode:  int64(StatusUserIdDuplicate),
+		}, {
+			id:          "testId3",
+			pw:          "testPw2",
+			afterMethod: "Commit",
+			expectCode:  int64(http.StatusCreated),
+		},
+	}
+
+	for _, test := range tests {
+		req.UserId = test.id
+		req.UserPw = test.pw
+
+		mockStore.On("Insert", &model.Auth{
+			UserId: test.id,
+			UserPw: test.pw,
+		}).Return(&model.Auth{}, errors.New(""))
+		mockStore.On(test.afterMethod).Return(&gorm.DB{})
+
+		_ = h.CreateAuth(ctx, req, resp)
+		assert.Equal(t, test.expectCode, resp.Status)
+	}
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestAuthCreateInsertBadRequest(t *testing.T) {
+	req, resp := setup()
+
+	tests := []struct {
+		id          string
+		pw          string
+		expectCode  int64
+	}{
+		{
+			id:          "",
+			pw:          "testPw1",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "testId1",
+			pw:          "",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "",
+			pw:          "",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "qwe",
+			pw:          "qewrqewr",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "qwe",
+			pw:          "qwe",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "qwerqwerqwerqwerqwer",
+			pw:          "qweqrwe",
+			expectCode:  int64(http.StatusBadRequest),
+		}, {
+			id:          "qwe",
+			pw:          "qwerqwerqwerqwerqwer",
+			expectCode:  int64(http.StatusBadRequest),
+		},
+	}
+
+	for _, test := range tests {
+		req.UserId = test.id
+		req.UserPw = test.pw
+		_ = h.CreateAuth(ctx, req, resp)
+		assert.Equal(t, test.expectCode, resp.Status)
 	}
 	mockStore.AssertExpectations(t)
 }
