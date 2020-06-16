@@ -5,6 +5,7 @@ import (
 	"auth/dao/user"
 	"auth/model"
 	"context"
+	"github.com/go-playground/validator/v10"
 	log "github.com/micro/go-micro/v2/logger"
 	"github.com/stretchr/testify/mock"
 	"net/http"
@@ -14,19 +15,29 @@ import (
 
 const (
 	StatusUserIdDuplicate = 470
+	StatusColumnLengthOver = 570
+	StatusBcryptNotHashed = 571
 )
 
 type auth struct{
 	adc *dao.AuthDAOCreator
+	validate *validator.Validate
 }
 
-func NewAuth(adc *dao.AuthDAOCreator) *auth {
+func NewAuth(adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
 	return &auth{
-		adc: adc,
+		adc:      adc,
+		validate: validate,
 	}
 }
 
 func (e *auth) CreateAuth(ctx context.Context, req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) error {
+	if err := e.validate.Struct(req); err != nil {
+		rsp.Status = http.StatusBadRequest
+		rsp.Message = err.Error()
+		return nil
+	}
+
 	var ad dao.AuthDAOService
 	switch ctx.Value("env") {
 	case "test":
@@ -50,38 +61,17 @@ func (e *auth) CreateAuth(ctx context.Context, req *proto.CreateAuthRequest, rsp
 		rsp.Status = StatusUserIdDuplicate
 		rsp.Message = user.IdDuplicateError.Error()
 		ad.Rollback()
+	case user.DataLengthOverError:
+		rsp.Status = StatusColumnLengthOver
+		rsp.Message = user.DataLengthOverError.Error()
+	case user.BcryptGenerateError:
+		rsp.Status = StatusBcryptNotHashed
+		rsp.Message = user.BcryptGenerateError.Error()
+	default: // Unknown Error
+		rsp.Status = http.StatusInternalServerError
+		rsp.Message = err.Error()
 	}
 
 	log.Info("Received Auth.CreateAuth request")
 	return nil
-}
-
-// Stream is a server side stream handler called via client.Stream or the generated client code
-func (e *auth) Stream(ctx context.Context, req *proto.StreamingRequest, stream proto.Auth_StreamStream) error {
-	log.Infof("Received Auth.Stream request with count: %d", req.Count)
-
-	for i := 0; i < int(req.Count); i++ {
-		log.Infof("Responding: %d", i)
-		if err := stream.Send(&proto.StreamingResponse{
-			Count: int64(i),
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// PingPong is a bidirectional stream handler called via client.Stream or the generated client code
-func (e *auth) PingPong(ctx context.Context, stream proto.Auth_PingPongStream) error {
-	for {
-		req, err := stream.Recv()
-		if err != nil {
-			return err
-		}
-		log.Infof("Got ping %v", req.Stroke)
-		if err := stream.Send(&proto.Pong{Stroke: req.Stroke}); err != nil {
-			return err
-		}
-	}
 }
