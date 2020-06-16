@@ -2,13 +2,15 @@ package main
 
 import (
 	"auth/adapter/db"
+	"auth/dao"
 	"auth/handler"
 	auth "auth/proto/auth"
 	"auth/subscriber"
+	"github.com/go-playground/validator/v10"
 	"github.com/micro/go-micro/v2"
 	log "github.com/micro/go-micro/v2/logger"
-)
 
+)
 
 func main() {
 	service := micro.NewService(
@@ -20,7 +22,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to connect mysql server, err: %v\n", err)
 	}
-	h := handler.NewAuth(conn)
+	adc := dao.NewAuthDAOCreator(conn)
+	validate := validator.New()
+	h := handler.NewAuth(adc, validate)
 
  	if err := auth.RegisterAuthHandler(service.Server(), h); err != nil {
  		log.Fatal(err)
