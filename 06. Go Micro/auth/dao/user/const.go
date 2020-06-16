@@ -9,4 +9,5 @@ const (
 
 const (
 	IdDuplicateErrorCode = 1062
+	DataTooLongErrorCode = 1406
 )
