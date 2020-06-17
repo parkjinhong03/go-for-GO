@@ -6,10 +6,9 @@ import (
 	"auth/handler"
 	auth "auth/proto/auth"
 	"auth/subscriber"
-	"github.com/go-playground/validator/v10"
+	"auth/tool/validator"
 	"github.com/micro/go-micro/v2"
 	log "github.com/micro/go-micro/v2/logger"
-
 )
 
 func main() {
@@ -23,7 +22,8 @@ func main() {
 		log.Fatalf("unable to connect mysql server, err: %v\n", err)
 	}
 	adc := dao.NewAuthDAOCreator(conn)
-	validate := validator.New()
+	validate, err := validator.New()
+	if err != nil { log.Fatal(err) }
 	h := handler.NewAuth(adc, validate)
 
  	if err := auth.RegisterAuthHandler(service.Server(), h); err != nil {
