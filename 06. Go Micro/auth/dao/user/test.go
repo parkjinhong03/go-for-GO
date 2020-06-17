@@ -19,15 +19,15 @@ func NewTestDAO(mock *mock.Mock) *testDAO {
 }
 
 func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
+	auth.Status = CreatePending
 	td.mock.Called(auth)
 
 	for _, a := range AuthArr {
-		if a.UserId != (*auth).UserId { continue }
+		if a.UserId != auth.UserId { continue }
 		err = IdDuplicateError
 		return
 	}
 
-	auth.Status = CreatePending
 	auth.ID = uint(len(AuthArr) + 1)
 	AuthArr = append(AuthArr, *auth)
 	result = auth
