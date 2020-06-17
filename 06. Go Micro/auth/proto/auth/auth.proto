@@ -7,8 +7,12 @@ service Auth {
 }
 
 message CreateAuthRequest {
-    string userId = 1;
-    string userPw = 2;
+    string user_id = 1;
+    string user_pw = 2;
+    string name = 3;
+    string phone_number = 4;
+    string email = 5;
+    string introduction = 6;
 }
 
 message CreateAuthResponse {
