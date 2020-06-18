@@ -10,7 +10,9 @@ require (
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/golang/protobuf v1.4.2
 	github.com/jinzhu/gorm v1.9.12
-	github.com/micro/go-micro/v2 v2.8.0
+	github.com/micro/go-micro/v2 v2.9.0
+	github.com/micro/go-plugins/broker/rabbitmq/v2 v2.8.0
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	google.golang.org/protobuf v1.24.0
