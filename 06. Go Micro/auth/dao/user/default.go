@@ -42,6 +42,13 @@ func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 	return
 }
 
+func (d *defaultDAO) CheckIfUserIdExists(id string) (exist bool) {
+	var auth *model.Auth
+	d.db.Where("user_id = ?", id).First(auth)
+	if d.db.RowsAffected != 0 { exist = true } else { exist = false }
+	return
+}
+
 func (d *defaultDAO) Commit() *gorm.DB {
 	return d.db.Commit()
 }
