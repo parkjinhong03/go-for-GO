@@ -33,7 +33,7 @@ type CreateAuthRequest struct {
 	UserId       string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty" validate:"required,minLength=4,maxLength=16"`
 	UserPw       string `protobuf:"bytes,2,opt,name=user_pw,json=userPw,proto3" json:"user_pw,omitempty" validate:"required,minLength=4,maxLength=16"`
 	Name         string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty" validate:"required,minLength=2,maxLength=4"`
-	PhoneNumber  string `protobuf:"bytes,4,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty" validate:"required,length=11`
+	PhoneNumber  string `protobuf:"bytes,4,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty" validate:"required,strLength=11"`
 	Email        string `protobuf:"bytes,5,opt,name=email,proto3" json:"email,omitempty" validate:"required,email,maxLength=30"`
 	Introduction string `protobuf:"bytes,6,opt,name=introduction,proto3" json:"introduction,omitempty" validate:"maxLength=100"`
 }
