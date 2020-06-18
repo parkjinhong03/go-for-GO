@@ -8,7 +8,6 @@ import (
 	"auth/tool/validator"
 	"context"
 	"errors"
-	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -47,7 +46,7 @@ func init() {
 	adc := dao.NewAuthDAOCreator(nil)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
-	h = NewAuth(adc, validate)
+	h = NewAuth(nil, adc, validate)
 }
 
 func setUpEnv() (req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) {
@@ -75,7 +74,6 @@ func CreateTestFromForm(form Test) (test Test) {
 	if form.Introduction == None { test.Introduction = "" } else if form.Introduction == "" { test.Introduction = "" }
 	if form.Email == None 		{ test.Email = "" } 		else if form.Email == "" 		{ test.Email = DefaultEmail }
 
-	fmt.Println(test)
 	return
 }
 
@@ -90,18 +88,22 @@ func setRequestContext(req *proto.CreateAuthRequest, test Test) {
 
 func onExpectMethods(test Test) {
 	for _, expectMethod := range test.ExpectMethods {
-		switch expectMethod {
-		case "Insert":
-			mockStore.On("Insert", &model.Auth{
-				UserId: test.UserId,
-				UserPw: test.UserPw,
-				Status: user.CreatePending,
-			}).Return(&model.Auth{}, errors.New(""))
-		case "Commit":
-			mockStore.On("Commit").Return(&gorm.DB{})
-		case "Rollback":
-			mockStore.On("Rollback").Return(&gorm.DB{})
-		}
+		onMethod(expectMethod, test)
+	}
+}
+
+func onMethod(method string, test Test) {
+	switch method {
+	case "Insert":
+		mockStore.On("Insert", &model.Auth{
+			UserId: test.UserId,
+			UserPw: test.UserPw,
+			Status: user.CreatePending,
+		}).Return(&model.Auth{}, errors.New(""))
+	case "Commit":
+		mockStore.On("Commit").Return(&gorm.DB{})
+	case "Rollback":
+		mockStore.On("Rollback").Return(&gorm.DB{})
 	}
 }
 
@@ -217,7 +219,7 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 			Email: "itIsNotEmailFormat",
 			ExpectCode: int64(http.StatusBadRequest),
 		}, {
-			Email: "itIsSoLongEmail@naver.com",
+			Email: "itIsSoVeryTooLongEmail@naver.com",
 			ExpectCode: int64(http.StatusBadRequest),
 		},
 	}
@@ -225,10 +227,6 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 	for _, form := range forms {
 		tests = append(tests, CreateTestFromForm(form))
 	}
-	fmt.Println(tests)
-	defer func() {
-		fmt.Println(req)
-	}()
 
 	for _, test := range tests {
 		setRequestContext(req, test)
