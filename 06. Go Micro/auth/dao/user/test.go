@@ -22,8 +22,7 @@ func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
 	auth.Status = CreatePending
 	td.mock.Called(auth)
 
-	for _, a := range AuthArr {
-		if a.UserId != auth.UserId { continue }
+	if td.CheckIfUserIdExists(auth.UserId) {
 		err = IdDuplicateError
 		return
 	}
@@ -32,6 +31,13 @@ func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
 	AuthArr = append(AuthArr, *auth)
 	result = auth
 	return
+}
+
+func (td *testDAO) CheckIfUserIdExists(id string) bool {
+	for _, auth := range AuthArr {
+		if auth.UserId == id { return true }
+	}
+	return false
 }
 
 func (td *testDAO) Commit() *gorm.DB {
