@@ -10,7 +10,7 @@ func New() (validate *validator.Validate, err error) {
 	validate = validator.New()
 	if err = validate.RegisterValidation("minLength", minLengthValidator); err != nil { return }
 	if err = validate.RegisterValidation("maxLength", maxLengthValidator); err != nil { return }
-	if err = validate.RegisterValidation("length", lengthValidator); err != nil { return }
+	if err = validate.RegisterValidation("strLength", strLengthValidator); err != nil { return }
 
 	return
 }
@@ -35,8 +35,8 @@ func maxLengthValidator(fl validator.FieldLevel) bool {
 	return fieldLen < paramLen
 }
 
-func lengthValidator(fl validator.FieldLevel) bool {
-	fieldLen := len(strconv.Itoa(int(fl.Field().Int())))
+func strLengthValidator(fl validator.FieldLevel) bool {
+	fieldLen := len(fl.Field().String())
 	paramLen, err := strconv.Atoi(fl.Param())
 	if err != nil {
 		return false
