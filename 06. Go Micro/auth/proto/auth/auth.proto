@@ -4,6 +4,18 @@ package examples.blog.service.auth;
 
 service Auth {
     rpc CreateAuth(CreateAuthRequest) returns (CreateAuthResponse) {}
+    rpc CheckIfUserIdExist(UserIdExistRequest) returns (UserIdExistResponse) {}
+}
+
+message UserIdExistRequest {
+    string user_id = 1;
+    string authorization = 2;
+}
+
+message UserIdExistResponse {
+    int64 status = 1;
+    string message = 2;
+    string authorization = 3;
 }
 
 message CreateAuthRequest {

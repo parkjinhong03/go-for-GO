@@ -35,6 +35,7 @@ var _ server.Option
 
 type AuthService interface {
 	CreateAuth(ctx context.Context, in *CreateAuthRequest, opts ...client.CallOption) (*CreateAuthResponse, error)
+	CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, opts ...client.CallOption) (*UserIdExistResponse, error)
 }
 
 type authService struct {
@@ -59,15 +60,27 @@ func (c *authService) CreateAuth(ctx context.Context, in *CreateAuthRequest, opt
 	return out, nil
 }
 
+func (c *authService) CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, opts ...client.CallOption) (*UserIdExistResponse, error) {
+	req := c.c.NewRequest(c.name, "Auth.CheckIfUserIdExist", in)
+	out := new(UserIdExistResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Auth service
 
 type AuthHandler interface {
 	CreateAuth(context.Context, *CreateAuthRequest, *CreateAuthResponse) error
+	CheckIfUserIdExist(context.Context, *UserIdExistRequest, *UserIdExistResponse) error
 }
 
 func RegisterAuthHandler(s server.Server, hdlr AuthHandler, opts ...server.HandlerOption) error {
 	type auth interface {
 		CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error
+		CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error
 	}
 	type Auth struct {
 		auth
@@ -82,4 +95,8 @@ type authHandler struct {
 
 func (h *authHandler) CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error {
 	return h.AuthHandler.CreateAuth(ctx, in, out)
+}
+
+func (h *authHandler) CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error {
+	return h.AuthHandler.CheckIfUserIdExist(ctx, in, out)
 }
