@@ -42,10 +42,11 @@ func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 	return
 }
 
-func (d *defaultDAO) CheckIfUserIdExists(id string) (exist bool) {
-	var auth *model.Auth
-	d.db.Where("user_id = ?", id).First(auth)
-	if d.db.RowsAffected != 0 { exist = true } else { exist = false }
+func (d *defaultDAO) CheckIfUserIdExists(id string) (exist bool, err error) {
+	auth := new(model.Auth)
+	result := d.db.Where("user_id = ?", id).Find(auth)
+	if err = result.Error; err != nil { return }
+	if result.RowsAffected == 0 { exist = false } else { exist = true }
 	return
 }
 
