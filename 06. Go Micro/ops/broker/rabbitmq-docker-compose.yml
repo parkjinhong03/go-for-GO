@@ -1,10 +1,11 @@
 version: '3.5'
 services:
   rabbitmq_server:
-    image: rabbitmq:latest
+    image: rabbitmq:3-management
     container_name: rabbitmq_server_dev
     ports:
-      - "5672"
+      - 15672:15672
+      - 5672:5672
     environment:
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
