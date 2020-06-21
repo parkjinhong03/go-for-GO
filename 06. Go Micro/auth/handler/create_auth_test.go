@@ -8,8 +8,8 @@ import (
 	"auth/tool/validator"
 	"context"
 	"errors"
+	"github.com/bmizerany/assert"
 	"github.com/jinzhu/gorm"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"log"
 	"net/http"
@@ -19,17 +19,6 @@ import (
 var mockStore mock.Mock
 var ctx context.Context
 var h *auth
-
-type Test struct {
-	UserId        string
-	UserPw        string
-	Name          string
-	PhoneNumber   string
-	Email         string
-	Introduction  string
-	ExpectCode    int64
-	ExpectMethods []string
-}
 
 const (
 	None = "none"
@@ -49,55 +38,63 @@ func init() {
 	h = NewAuth(nil, adc, validate)
 }
 
-func setUpEnv() (req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) {
+func setUpEnv() () {
 	mockStore = mock.Mock{}
 	user.AuthArr = nil
-	req = &proto.CreateAuthRequest{}
-	rsp = &proto.CreateAuthResponse{}
+}
+
+type CreateAuthTest struct {
+	UserId        string
+	UserPw        string
+	Name          string
+	PhoneNumber   string
+	Email         string
+	Introduction  string
+	ExpectCode    int64
+	ExpectMethods []string
+}
+
+func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
+	test.UserId = c.UserId
+	test.UserPw = c.UserPw
+	test.Name = c.Name
+	test.PhoneNumber = c.PhoneNumber
+	test.Introduction = c.Introduction
+	test.Email = c.Email
+	test.ExpectMethods = c.ExpectMethods
+	test.ExpectCode = c.ExpectCode
+
+	if c.UserId == None 		{ test.UserId = "" } 		else if c.UserId == "" 		  { test.UserId = DefaultUserId }
+	if c.UserPw == None 		{ test.UserPw = "" } 		else if c.UserPw == "" 		  { test.UserPw = DefaultUserPw }
+	if c.Name == None 		 	{ test.Name = "" } 			else if c.Name == "" 		  { test.Name = DefaultName }
+	if c.PhoneNumber == None  	{ test.PhoneNumber = "" }	else if c.PhoneNumber == ""   { test.PhoneNumber = DefaultPN }
+	if c.Introduction == None	{ test.Introduction = "" } 	else if c.Introduction == ""  { test.Introduction = "" }
+	if c.Email == None 			{ test.Email = "" } 		else if c.Email == "" 		  { test.Email = DefaultEmail }
+
 	return
 }
 
-func CreateTestFromForm(form Test) (test Test) {
-	test.UserId = form.UserId
-	test.UserPw = form.UserPw
-	test.Name = form.Name
-	test.PhoneNumber = form.PhoneNumber
-	test.Introduction = form.Introduction
-	test.Email = form.Email
-	test.ExpectMethods = form.ExpectMethods
-	test.ExpectCode = form.ExpectCode
-
-	if form.UserId == None 		 { test.UserId = "" } 		else if form.UserId == "" 		{ test.UserId = DefaultUserId }
-	if form.UserPw == None 		 { test.UserPw = "" } 		else if form.UserPw == "" 		{ test.UserPw = DefaultUserPw }
-	if form.Name == None 		 { test.Name = "" } 		else if form.Name == "" 		{ test.Name = DefaultName }
-	if form.PhoneNumber == None  { test.PhoneNumber = "" }  else if form.PhoneNumber == ""  { test.PhoneNumber = DefaultPN }
-	if form.Introduction == None { test.Introduction = "" } else if form.Introduction == "" { test.Introduction = "" }
-	if form.Email == None 		{ test.Email = "" } 		else if form.Email == "" 		{ test.Email = DefaultEmail }
-
-	return
+func (c CreateAuthTest) setRequestContext(req *proto.CreateAuthRequest) {
+	req.UserId = c.UserId
+	req.UserPw = c.UserPw
+	req.Name = c.Name
+	req.Email = c.Email
+	req.PhoneNumber = c.PhoneNumber
+	req.Introduction = c.Introduction
 }
 
-func setRequestContext(req *proto.CreateAuthRequest, test Test) {
-	req.UserId = test.UserId
-	req.UserPw = test.UserPw
-	req.Name = test.Name
-	req.Email = test.Email
-	req.PhoneNumber = test.PhoneNumber
-	req.Introduction = test.Introduction
-}
-
-func onExpectMethods(test Test) {
-	for _, expectMethod := range test.ExpectMethods {
-		onMethod(expectMethod, test)
+func (c CreateAuthTest) onExpectMethods() {
+	for _, expectMethod := range c.ExpectMethods {
+		c.onMethod(expectMethod)
 	}
 }
 
-func onMethod(method string, test Test) {
+func (c CreateAuthTest) onMethod(method string) {
 	switch method {
 	case "Insert":
 		mockStore.On("Insert", &model.Auth{
-			UserId: test.UserId,
-			UserPw: test.UserPw,
+			UserId: c.UserId,
+			UserPw: c.UserPw,
 			Status: user.CreatePending,
 		}).Return(&model.Auth{}, errors.New(""))
 	case "Commit":
@@ -108,10 +105,12 @@ func onMethod(method string, test Test) {
 }
 
 func TestAuthCreateManySuccess(t *testing.T) {
-	req, resp := setUpEnv()
-	var tests []Test
+	setUpEnv()
+	req := &proto.CreateAuthRequest{}
+	resp := &proto.CreateAuthResponse{}
+	var tests []CreateAuthTest
 
-	forms := []Test {
+	forms := []CreateAuthTest {
 		{
 			UserId:        "testId1",
 			ExpectMethods: []string{"Insert", "Commit"},
@@ -128,12 +127,12 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	}
 
 	for _, form := range forms {
-		tests = append(tests, CreateTestFromForm(form))
+		tests = append(tests, form.createTestFromForm())
 	}
 
 	for _, test := range tests {
-		setRequestContext(req, test)
-		onExpectMethods(test)
+		test.setRequestContext(req)
+		test.onExpectMethods()
 		_ = h.CreateAuth(ctx, req, resp)
 		assert.Equal(t, test.ExpectCode, resp.Status)
 	}
@@ -142,10 +141,12 @@ func TestAuthCreateManySuccess(t *testing.T) {
 }
 
 func TestAuthCreateUserIdAndStudentNumDuplicateError(t *testing.T) {
-	req, resp := setUpEnv()
-	var tests []Test
+	setUpEnv()
+	req := &proto.CreateAuthRequest{}
+	resp := &proto.CreateAuthResponse{}
+	var tests []CreateAuthTest
 
-	var forms = []Test{
+	var forms = []CreateAuthTest{
 		{
 			UserId:        "testId1",
 			ExpectMethods: []string{"Insert", "Commit"},
@@ -162,12 +163,12 @@ func TestAuthCreateUserIdAndStudentNumDuplicateError(t *testing.T) {
 	}
 
 	for _, form := range forms {
-		tests = append(tests, CreateTestFromForm(form))
+		tests = append(tests, form.createTestFromForm())
 	}
 
 	for _, test := range tests {
-		setRequestContext(req, test)
-		onExpectMethods(test)
+		test.setRequestContext(req)
+		test.onExpectMethods()
 		_ = h.CreateAuth(ctx, req, resp)
 		assert.Equal(t, test.ExpectCode, resp.Status)
 	}
@@ -176,10 +177,12 @@ func TestAuthCreateUserIdAndStudentNumDuplicateError(t *testing.T) {
 }
 
 func TestAuthCreateInsertBadRequest(t *testing.T) {
-	req, resp := setUpEnv()
-	var tests []Test
+	setUpEnv()
+	req := &proto.CreateAuthRequest{}
+	resp := &proto.CreateAuthResponse{}
+	var tests []CreateAuthTest
 
-	forms := []Test{
+	forms := []CreateAuthTest{
 		{
 			UserId:     None,
 			ExpectCode: int64(http.StatusBadRequest),
@@ -225,12 +228,12 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 	}
 
 	for _, form := range forms {
-		tests = append(tests, CreateTestFromForm(form))
+		tests = append(tests, form.createTestFromForm())
 	}
 
 	for _, test := range tests {
-		setRequestContext(req, test)
-		onExpectMethods(test)
+		test.setRequestContext(req)
+		test.onExpectMethods()
 		_ = h.CreateAuth(ctx, req, resp)
 		assert.Equal(t, test.ExpectCode, resp.Status)
 	}
