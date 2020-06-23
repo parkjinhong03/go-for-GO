@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var AuthArr []model.Auth
-
 type testDAO struct {
 	mock *mock.Mock
 }
@@ -18,26 +16,14 @@ func NewTestDAO(mock *mock.Mock) *testDAO {
 	}
 }
 
-func (td *testDAO) Insert(auth *model.Auth) (result *model.Auth, err error) {
-	auth.Status = CreatePending
-	td.mock.Called(auth)
-
-	if exist, _ := td.CheckIfUserIdExists(auth.UserId); exist {
-		err = IdDuplicateError
-		return
-	}
-
-	auth.ID = uint(len(AuthArr) + 1)
-	AuthArr = append(AuthArr, *auth)
-	result = auth
-	return
+func (td *testDAO) Insert(auth *model.Auth) (*model.Auth, error) {
+	args := td.mock.Called(auth)
+	return args.Get(0).(*model.Auth), args.Error(1)
 }
 
 func (td *testDAO) CheckIfUserIdExists(id string) (bool, error) {
-	for _, auth := range AuthArr {
-		if auth.UserId == id { return true, nil }
-	}
-	return false, nil
+	args := td.mock.Called(id)
+	return args.Bool(0), args.Error(1)
 }
 
 func (td *testDAO) Commit() *gorm.DB {
