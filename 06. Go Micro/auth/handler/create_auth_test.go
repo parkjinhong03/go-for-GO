@@ -1,47 +1,21 @@
 package handler
 
 import (
-	"auth/dao"
 	"auth/dao/user"
 	"auth/model"
 	proto "auth/proto/auth"
-	"auth/tool/validator"
-	"context"
-	"errors"
-	"github.com/bmizerany/assert"
+	"auth/tool/jwt"
+	"fmt"
 	"github.com/jinzhu/gorm"
-	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"testing"
+	"time"
 )
 
-var mockStore mock.Mock
-var ctx context.Context
-var h *auth
-
-const (
-	None = "none"
-	DefaultUserId = "testId"
-	DefaultUserPw = "testPw"
-	DefaultName = "박진홍"
-	DefaultPN = "01088378347"
-	DefaultEmail = "jinhong0719@naver.com"
-)
-
-func init() {
-	ctx = context.WithValue(context.Background(), "env", "test")
-	ctx = context.WithValue(ctx, "mockStore", &mockStore)
-	adc := dao.NewAuthDAOCreator(nil)
-	validate, err := validator.New()
-	if err != nil { log.Fatal(err) }
-	h = NewAuth(nil, adc, validate)
-}
-
-func setUpEnv() () {
-	mockStore = mock.Mock{}
-	user.AuthArr = nil
-}
+type returns []interface{}
+type method string
 
 type CreateAuthTest struct {
 	UserId        string
@@ -50,8 +24,9 @@ type CreateAuthTest struct {
 	PhoneNumber   string
 	Email         string
 	Introduction  string
+	Authorization string
 	ExpectCode    int64
-	ExpectMethods []string
+	ExpectMethods map[method]returns
 }
 
 func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
@@ -63,6 +38,7 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	test.Email = c.Email
 	test.ExpectMethods = c.ExpectMethods
 	test.ExpectCode = c.ExpectCode
+	test.Authorization = c.Authorization
 
 	if c.UserId == None 		{ test.UserId = "" } 		else if c.UserId == "" 		  { test.UserId = DefaultUserId }
 	if c.UserPw == None 		{ test.UserPw = "" } 		else if c.UserPw == "" 		  { test.UserPw = DefaultUserPw }
@@ -70,8 +46,31 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	if c.PhoneNumber == None  	{ test.PhoneNumber = "" }	else if c.PhoneNumber == ""   { test.PhoneNumber = DefaultPN }
 	if c.Introduction == None	{ test.Introduction = "" } 	else if c.Introduction == ""  { test.Introduction = "" }
 	if c.Email == None 			{ test.Email = "" } 		else if c.Email == "" 		  { test.Email = DefaultEmail }
+	if c.Authorization == None  { test.Authorization = "" } else if c.Authorization == "" {
+		test.Authorization = jwt.GenerateDuplicateCertJWTNoReturnErr(test.UserId, time.Hour)
+	}
+
+	if _, ok := test.ExpectMethods["Insert"]; !ok {
+		return
+	}
+
+	switch auth := test.ExpectMethods["Insert"][0]; auth.(type) {
+	case *model.Auth:
+		test.setAuthTupleContext(auth.(*model.Auth), id)
+		id++
+	case nil:
+	}
 
 	return
+}
+
+func (c CreateAuthTest) setAuthTupleContext(auth *model.Auth, id uint) {
+	auth.ID = id
+	auth.UserId = c.UserId
+	auth.UserPw = c.UserPw
+	auth.Status = user.CreatePending
+	auth.CreatedAt = time.Now()
+	auth.UpdatedAt = time.Now()
 }
 
 func (c CreateAuthTest) setRequestContext(req *proto.CreateAuthRequest) {
@@ -84,24 +83,27 @@ func (c CreateAuthTest) setRequestContext(req *proto.CreateAuthRequest) {
 }
 
 func (c CreateAuthTest) onExpectMethods() {
-	for _, expectMethod := range c.ExpectMethods {
-		c.onMethod(expectMethod)
+	for name, returns := range c.ExpectMethods {
+		c.onMethod(string(name), returns)
 	}
 }
 
-func (c CreateAuthTest) onMethod(method string) {
+func (c CreateAuthTest) onMethod(method string, returns returns) {
 	switch method {
 	case "Insert":
 		mockStore.On("Insert", &model.Auth{
 			UserId: c.UserId,
 			UserPw: c.UserPw,
 			Status: user.CreatePending,
-		}).Return(&model.Auth{}, errors.New(""))
+		}).Return(returns...)
 	case "Commit":
-		mockStore.On("Commit").Return(&gorm.DB{})
+		mockStore.On("Commit").Return(returns...)
 	case "Rollback":
-		mockStore.On("Rollback").Return(&gorm.DB{})
+		mockStore.On("Rollback").Return(returns...)
+	default:
+		log.Fatalf("%s method cannot be on booked\n", method)
 	}
+	return
 }
 
 func TestAuthCreateManySuccess(t *testing.T) {
@@ -113,15 +115,24 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	forms := []CreateAuthTest {
 		{
 			UserId:        "testId1",
-			ExpectMethods: []string{"Insert", "Commit"},
+			ExpectMethods: map[method]returns{
+				"Insert": {new(model.Auth), nil},
+				"Commit": {new(gorm.DB)},
+			},
 			ExpectCode:    int64(http.StatusCreated),
 		}, {
 			UserId:        "testId2",
-			ExpectMethods: []string{"Insert", "Commit"},
+			ExpectMethods: map[method]returns{
+				"Insert": {new(model.Auth), nil},
+				"Commit": {new(gorm.DB)},
+			},
 			ExpectCode:    int64(http.StatusCreated),
 		}, {
 			UserId:        "testId3",
-			ExpectMethods: []string{"Insert", "Commit"},
+			ExpectMethods: map[method]returns{
+				"Insert": {new(model.Auth), nil},
+				"Commit": {&gorm.DB{}},
+			},
 			ExpectCode:    int64(http.StatusCreated),
 		},
 	}
@@ -140,7 +151,7 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-func TestAuthCreateUserIdAndStudentNumDuplicateError(t *testing.T) {
+func TestAuthCreateUserIdDuplicateError(t *testing.T) {
 	setUpEnv()
 	req := &proto.CreateAuthRequest{}
 	resp := &proto.CreateAuthResponse{}
@@ -149,15 +160,33 @@ func TestAuthCreateUserIdAndStudentNumDuplicateError(t *testing.T) {
 	var forms = []CreateAuthTest{
 		{
 			UserId:        "testId1",
-			ExpectMethods: []string{"Insert", "Commit"},
-			ExpectCode:    int64(http.StatusCreated),
-		}, {
-			UserId:        "testId1",
-			ExpectMethods: []string{"Insert", "Rollback"},
+			Email:         "jinhong0719@naver.com",
+			Authorization: None,
 			ExpectCode:    StatusUserIdDuplicate,
 		}, {
 			UserId:        "testId2",
-			ExpectMethods: []string{"Insert", "Commit"},
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "", time.Hour),
+			ExpectCode:    StatusUserIdDuplicate,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId1", "", time.Hour),
+			ExpectCode:    StatusUserIdDuplicate,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("", "jinhong0719@naver.com", time.Hour),
+			ExpectCode:    StatusUserIdDuplicate,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "jinhong0719@naver.fake", time.Hour),
+			ExpectCode:    StatusUserIdDuplicate,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "jinhong0719@naver.com", time.Hour),
 			ExpectCode:    int64(http.StatusCreated),
 		},
 	}
