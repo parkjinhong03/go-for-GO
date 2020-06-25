@@ -23,7 +23,6 @@ func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 		err = BcryptGenerateError
 		return
 	}
-	u.Status = CreatePending
 
 	r := d.db.Create(u)
 	if r.Error == nil { result = r.Value.(*model.Auth); return }
