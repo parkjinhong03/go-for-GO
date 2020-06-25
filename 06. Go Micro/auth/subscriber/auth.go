@@ -1,20 +1,17 @@
 package subscriber
 
 import (
-	"context"
-	log "github.com/micro/go-micro/v2/logger"
-
-	auth "auth/proto/auth"
+	"fmt"
+	"github.com/micro/go-micro/v2/broker"
 )
 
-type Auth struct{}
+type auth struct{}
 
-func (e *Auth) Handle(ctx context.Context, msg *auth.Message) error {
-	log.Info("Handler Received message: ", msg.Say)
-	return nil
+func NewAuth() *auth {
+	return &auth{}
 }
 
-func Handler(ctx context.Context, msg *auth.Message) error {
-	log.Info("Function Received message: ", msg.Say)
+func (a *auth) CreateAuth(e broker.Event) error {
+	fmt.Println(string(e.Message().Body))
 	return nil
 }
