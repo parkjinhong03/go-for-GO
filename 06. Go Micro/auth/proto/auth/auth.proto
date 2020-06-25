@@ -25,6 +25,7 @@ message CreateAuthRequest {
     string phone_number = 4;
     string email = 5;
     string introduction = 6;
+    string authorization = 7;
 }
 
 message CreateAuthResponse {
