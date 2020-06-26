@@ -34,7 +34,7 @@ var _ server.Option
 // Client API for Auth service
 
 type AuthService interface {
-	CreateAuth(ctx context.Context, in *CreateAuthRequest, opts ...client.CallOption) (*CreateAuthResponse, error)
+	BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, opts ...client.CallOption) (*BeforeCreateAuthResponse, error)
 	CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, opts ...client.CallOption) (*UserIdExistResponse, error)
 }
 
@@ -50,9 +50,9 @@ func NewAuthService(name string, c client.Client) AuthService {
 	}
 }
 
-func (c *authService) CreateAuth(ctx context.Context, in *CreateAuthRequest, opts ...client.CallOption) (*CreateAuthResponse, error) {
-	req := c.c.NewRequest(c.name, "Auth.CreateAuth", in)
-	out := new(CreateAuthResponse)
+func (c *authService) BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, opts ...client.CallOption) (*BeforeCreateAuthResponse, error) {
+	req := c.c.NewRequest(c.name, "Auth.BeforeCreateAuth", in)
+	out := new(BeforeCreateAuthResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -73,13 +73,13 @@ func (c *authService) CheckIfUserIdExist(ctx context.Context, in *UserIdExistReq
 // Server API for Auth service
 
 type AuthHandler interface {
-	CreateAuth(context.Context, *CreateAuthRequest, *CreateAuthResponse) error
+	BeforeCreateAuth(context.Context, *BeforeCreateAuthRequest, *BeforeCreateAuthResponse) error
 	CheckIfUserIdExist(context.Context, *UserIdExistRequest, *UserIdExistResponse) error
 }
 
 func RegisterAuthHandler(s server.Server, hdlr AuthHandler, opts ...server.HandlerOption) error {
 	type auth interface {
-		CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error
+		BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, out *BeforeCreateAuthResponse) error
 		CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error
 	}
 	type Auth struct {
@@ -93,8 +93,8 @@ type authHandler struct {
 	AuthHandler
 }
 
-func (h *authHandler) CreateAuth(ctx context.Context, in *CreateAuthRequest, out *CreateAuthResponse) error {
-	return h.AuthHandler.CreateAuth(ctx, in, out)
+func (h *authHandler) BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, out *BeforeCreateAuthResponse) error {
+	return h.AuthHandler.BeforeCreateAuth(ctx, in, out)
 }
 
 func (h *authHandler) CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error {

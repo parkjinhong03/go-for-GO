@@ -3,13 +3,14 @@ syntax = "proto3";
 package examples.blog.service.auth;
 
 service Auth {
-    rpc CreateAuth(CreateAuthRequest) returns (CreateAuthResponse) {}
+    rpc BeforeCreateAuth(BeforeCreateAuthRequest) returns (BeforeCreateAuthResponse) {}
     rpc CheckIfUserIdExist(UserIdExistRequest) returns (UserIdExistResponse) {}
 }
 
 message UserIdExistRequest {
     string user_id = 1;
     string authorization = 2;
+    string XRequestID = 3;
 }
 
 message UserIdExistResponse {
@@ -18,7 +19,7 @@ message UserIdExistResponse {
     string authorization = 3;
 }
 
-message CreateAuthRequest {
+message BeforeCreateAuthRequest {
     string user_id = 1;
     string user_pw = 2;
     string name = 3;
@@ -26,9 +27,10 @@ message CreateAuthRequest {
     string email = 5;
     string introduction = 6;
     string authorization = 7;
+    string XRequestID = 8;
 }
 
-message CreateAuthResponse {
+message BeforeCreateAuthResponse {
     int64 status = 1;
     string message = 2;
 }
