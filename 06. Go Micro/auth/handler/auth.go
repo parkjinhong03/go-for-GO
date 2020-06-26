@@ -3,22 +3,17 @@ package handler
 import (
 	"auth/dao"
 	"auth/dao/user"
-	"auth/model"
 	proto "auth/proto/auth"
+	"auth/subscriber"
 	"auth/tool/jwt"
+	"auth/tool/random"
 	"context"
+	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/micro/go-micro/v2/broker"
-	log "github.com/micro/go-micro/v2/logger"
 	"github.com/stretchr/testify/mock"
 	"net/http"
 	"time"
-)
-
-const (
-	StatusUserIdDuplicate = 470
-	StatusColumnLengthOver = 570
-	StatusBcryptNotHashed = 571
 )
 
 type auth struct {
@@ -61,7 +56,7 @@ func (e *auth) CheckIfUserIdExist(ctx context.Context, req *proto.UserIdExistReq
 		return
 	}
 
-	ss, err := jwt.GenerateDuplicateCertJWT(req.UserId, time.Hour)
+	ss, err := jwt.GenerateDuplicateCertJWT(req.UserId, "", time.Hour)
 	if err != nil {
 		rsp.SetResponse(http.StatusInternalServerError, err.Error())
 		return
@@ -72,66 +67,40 @@ func (e *auth) CheckIfUserIdExist(ctx context.Context, req *proto.UserIdExistReq
 	return
 }
 
-func (e *auth) CreateAuth(ctx context.Context, req *proto.CreateAuthRequest, rsp *proto.CreateAuthResponse) (_ error) {
+func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuthRequest, rsp *proto.BeforeCreateAuthResponse) (_ error) {
 	if err := e.validate.Struct(req); err != nil {
 		rsp.Status = http.StatusBadRequest
 		rsp.Message = err.Error()
 		return
 	}
 
-	var ad dao.AuthDAOService
-	switch ctx.Value("env") {
-	case "test":
-		mockStore := ctx.Value("mockStore").(*mock.Mock)
-		ad = e.adc.GetTestAuthDAO(mockStore)
-	default:
-		ad = e.adc.GetDefaultAuthDAO()
-	}
-
-	exist, err := ad.CheckIfUserIdExists(req.UserId)
+	claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
 	if err != nil {
 		rsp.Status = http.StatusInternalServerError
-		rsp.Message = err.Error()
 		return
 	}
 
-	switch exist {
-	case true:
+	if claim.UserId != req.UserId {
 		rsp.Status = StatusUserIdDuplicate
-		rsp.Message = user.IdDuplicateError.Error()
-	case false:
-		rsp.Status = http.StatusCreated
-		rsp.Message = "succeed in creating new auth"
+		rsp.Message = "this user iD is already in use"
+		return
 	}
-	return
 
-	// 고루틴으로 실행
-	_, err = ad.Insert(&model.Auth{
-		UserId: req.UserId,
-		UserPw: req.UserPw,
+	if claim.Email != req.Email {
+		rsp.Status = StatusEmailDuplicate
+		rsp.Message = "this email is already in use"
+		return
+	}
+
+	header := make(map[string]string)
+	header["X-Request-ID"] = req.XRequestID
+	header["MessageId"] = random.GenerateString(16)
+	header["Timestamp"] = time.Now().Format(time.RFC3339)
+	fmt.Println(header)
+
+	err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
+		Header: header,
+		Body:   nil,
 	})
-
-	switch err {
-	case nil:
-		rsp.Status = http.StatusCreated
-		rsp.Message = "create auth success"
-		ad.Commit()
-	case user.IdDuplicateError:
-		rsp.Status = StatusUserIdDuplicate
-		rsp.Message = user.IdDuplicateError.Error()
-		ad.Rollback()
-	case user.DataLengthOverError:
-		rsp.Status = StatusColumnLengthOver
-		rsp.Message = user.DataLengthOverError.Error()
-	case user.BcryptGenerateError:
-		rsp.Status = StatusBcryptNotHashed
-		rsp.Message = user.BcryptGenerateError.Error()
-	default: // Unknown Error
-		rsp.Status = http.StatusInternalServerError
-		rsp.Message = err.Error()
-	}
-
-	log.Info("Received Auth.CreateAuth request")
-	return nil
+	return
 }
-
