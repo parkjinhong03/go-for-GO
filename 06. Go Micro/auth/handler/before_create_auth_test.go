@@ -1,14 +1,15 @@
 package handler
 
 import (
-	"auth/dao/user"
-	"auth/model"
 	proto "auth/proto/auth"
+	"auth/subscriber"
 	"auth/tool/jwt"
+	"auth/tool/random"
+	"context"
+	"fmt"
 	"github.com/google/uuid"
-	"github.com/jinzhu/gorm"
+	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
-	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -52,29 +53,18 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	if c.Authorization == None  { test.Authorization = "" } else if c.Authorization == "" {
 		test.Authorization = jwt.GenerateDuplicateCertJWTNoReturnErr(test.UserId, test.Email, time.Hour)
 	}
-
-	if _, ok := test.ExpectMethods["Insert"]; !ok {
-		return
-	}
-
-	switch auth := test.ExpectMethods["Insert"][0]; auth.(type) {
-	case *model.Auth:
-		test.setAuthTupleContext(auth.(*model.Auth), id)
-		id++
-	case nil:
-	}
-
 	return
 }
 
-func (c CreateAuthTest) setAuthTupleContext(auth *model.Auth, id uint) {
-	auth.ID = id
-	auth.UserId = c.UserId
-	auth.UserPw = c.UserPw
-	auth.Status = user.CreatePending
-	auth.CreatedAt = time.Now()
-	auth.UpdatedAt = time.Now()
-}
+//func (c CreateAuthTest) setAuthTupleContext(auth *model.Auth, id uint) {
+//	auth.ID = id
+//	auth.UserId = c.UserId
+//	auth.UserPw = c.UserPw
+//	auth.Status = user.CreatePending
+//	auth.CreatedAt = time.Now()
+//	auth.UpdatedAt = time.Now()
+//	id++
+//}
 
 func (c CreateAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
 	req.UserId = c.UserId
@@ -95,19 +85,32 @@ func (c CreateAuthTest) onExpectMethods() {
 
 func (c CreateAuthTest) onMethod(method string, returns returns) {
 	switch method {
-	case "Insert":
-		mockStore.On("Insert", &model.Auth{
-			UserId: c.UserId,
-			UserPw: c.UserPw,
-			Status: user.CreatePending,
+	case "Publish":
+		header := make(map[string]string)
+		header["XRequestId"] = c.XRequestId
+		header["MessageId"] = ctx.Value("MessageId").(string)
+
+		mockStore.On("Publish", subscriber.CreateAuthEventTopic, &broker.Message{
+			Header: header,
+			Body:   nil,
 		}).Return(returns...)
-	case "Commit":
-		mockStore.On("Commit").Return(returns...)
-	case "Rollback":
-		mockStore.On("Rollback").Return(returns...)
 	default:
-		log.Fatalf("%s method cannot be on booked\n", method)
+		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
 	}
+	//switch method {
+	//case "Insert":
+	//	mockStore.On("Insert", &model.Auth{
+	//		UserId: c.UserId,
+	//		UserPw: c.UserPw,
+	//		Status: user.CreatePending,
+	//	}).Return(returns...)
+	//case "Commit":
+	//	mockStore.On("Commit").Return(returns...)
+	//case "Rollback":
+	//	mockStore.On("Rollback").Return(returns...)
+	//default:
+	//	log.Fatalf("%s method cannot be on booked\n", method)
+	//}
 	return
 }
 
@@ -121,22 +124,19 @@ func TestAuthCreateManySuccess(t *testing.T) {
 		{
 			UserId:        "testId1",
 			ExpectMethods: map[method]returns{
-				"Insert": {new(model.Auth), nil},
-				"Commit": {new(gorm.DB)},
+				"Publish": {nil},
 			},
 			ExpectCode:    http.StatusCreated,
 		}, {
 			UserId:        "testId2",
 			ExpectMethods: map[method]returns{
-				"Insert": {new(model.Auth), nil},
-				"Commit": {new(gorm.DB)},
+				"Publish": {nil},
 			},
 			ExpectCode:    http.StatusCreated,
 		}, {
 			UserId:        "testId3",
 			ExpectMethods: map[method]returns{
-				"Insert": {new(model.Auth), nil},
-				"Commit": {&gorm.DB{}},
+				"Publish": {nil},
 			},
 			ExpectCode:    http.StatusCreated,
 		},
@@ -147,6 +147,7 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		ctx = context.WithValue(ctx, "MessageId", random.GenerateString(32))
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
@@ -189,8 +190,7 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "jinhong0719@naver.com", time.Hour),
 			ExpectCode:    http.StatusCreated,
 			ExpectMethods: map[method]returns{
-				"Insert": {new(model.Auth), nil},
-				"Commit": {&gorm.DB{}},
+				"Publish": {nil},
 			},
 		},
 	}
@@ -263,9 +263,6 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 		}, {
 			Email: "itIsSoVeryTooLongEmail@naver.com",
 			ExpectCode: http.StatusBadRequest,
-		}, {
-			ExpectCode: http.StatusBadRequest,
-
 		},
 	}
 
