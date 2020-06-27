@@ -12,23 +12,18 @@ import (
 	"time"
 )
 
-type userIdExistTest struct {
+type userIdDuplicatedTest struct {
 	UserId              string
 	Authorization       string
 	XRequestId          string
-	ExpectCode          int64
+	ExpectCode          uint32
 	ExpectMessage       string
 	ExpectMethods       map[method]returns
 	ExpectAuthorization string
 }
 
-func (c userIdExistTest) createTestFromForm() (test userIdExistTest) {
-	test.UserId = c.UserId
-	test.Authorization = c.Authorization
-	test.ExpectMethods = c.ExpectMethods
-	test.ExpectMessage = c.ExpectMessage
-	test.ExpectCode = c.ExpectCode
-	test.ExpectAuthorization = c.ExpectAuthorization
+func (c userIdDuplicatedTest) createTestFromForm() (test userIdDuplicatedTest) {
+	test = c
 
 	if c.UserId == None 		{ test.UserId = "" } 		else if c.UserId == "" 		  { test.UserId = DefaultUserId }
 	if c.Authorization == None 	{ test.Authorization = "" } else if c.Authorization == "" { test.Authorization = "" }
@@ -37,19 +32,19 @@ func (c userIdExistTest) createTestFromForm() (test userIdExistTest) {
 	return
 }
 
-func (c userIdExistTest) setRequestContext(req *proto.UserIdDuplicatedRequest) {
+func (c userIdDuplicatedTest) setRequestContext(req *proto.UserIdDuplicatedRequest) {
 	req.UserId = c.UserId
 	req.Authorization = c.Authorization
 	req.XRequestID = c.XRequestId
 }
 
-func (c userIdExistTest) onExpectMethods() {
+func (c userIdDuplicatedTest) onExpectMethods() {
 	for name, returns := range c.ExpectMethods {
 		c.onMethod(name, returns)
 	}
 }
 
-func (c userIdExistTest) onMethod(method method, returns returns) {
+func (c userIdDuplicatedTest) onMethod(method method, returns returns) {
 	switch method {
 	case "CheckIfUserIdExist":
 		mockStore.On("CheckIfUserIdExist", c.UserId).Return(returns...)
@@ -63,9 +58,9 @@ func TestUserIdDuplicatedStatusOK(t *testing.T) {
 	setUpEnv()
 	req := &proto.UserIdDuplicatedRequest{}
 	resp := &proto.UserIdDuplicatedResponse{}
-	var tests []userIdExistTest
+	var tests []userIdDuplicatedTest
 
-	forms := []userIdExistTest{
+	forms := []userIdDuplicatedTest{
 		{
 			UserId: "TestId1",
 			ExpectMethods: map[method]returns{
@@ -113,9 +108,9 @@ func TestUserIdDuplicatedDuplicateError(t *testing.T) {
 	setUpEnv()
 	req := &proto.UserIdDuplicatedRequest{}
 	resp := &proto.UserIdDuplicatedResponse{}
-	var tests []userIdExistTest
+	var tests []userIdDuplicatedTest
 
-	forms := []userIdExistTest{
+	forms := []userIdDuplicatedTest{
 		{
 			UserId: "TestId1",
 			ExpectMethods: map[method]returns{
@@ -151,9 +146,9 @@ func TestUserIdDuplicatedForbidden(t *testing.T) {
 	setUpEnv()
 	req := &proto.UserIdDuplicatedRequest{}
 	resp := &proto.UserIdDuplicatedResponse{}
-	var tests []userIdExistTest
+	var tests []userIdDuplicatedTest
 
-	forms := []userIdExistTest{
+	forms := []userIdDuplicatedTest{
 		{
 			UserId:        "TestId1",
 			Authorization: "ThisIsInvalidAuthorizationString",
@@ -177,9 +172,9 @@ func TestUserIdDuplicatedBadRequest(t *testing.T) {
 	setUpEnv()
 	req := &proto.UserIdDuplicatedRequest{}
 	resp := &proto.UserIdDuplicatedResponse{}
-	var tests []userIdExistTest
+	var tests []userIdDuplicatedTest
 
-	forms := []userIdExistTest{
+	forms := []userIdDuplicatedTest{
 		{
 			UserId: None,
 		}, {
@@ -210,9 +205,9 @@ func TestUserIdDuplicatedServerError(t *testing.T) {
 	setUpEnv()
 	req := &proto.UserIdDuplicatedRequest{}
 	resp := &proto.UserIdDuplicatedResponse{}
-	var tests []userIdExistTest
+	var tests []userIdDuplicatedTest
 
-	forms := []userIdExistTest{
+	forms := []userIdDuplicatedTest{
 		{
 			UserId: "TestId1",
 			ExpectMethods: map[method]returns{
