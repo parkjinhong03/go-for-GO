@@ -28,6 +28,7 @@ type CreateAuthTest struct {
 	Authorization string
 	XRequestId    string
 	ExpectCode    int64
+	ExpectMessage string
 	ExpectMethods map[method]returns
 }
 
@@ -40,6 +41,7 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	test.Email = c.Email
 	test.ExpectMethods = c.ExpectMethods
 	test.ExpectCode = c.ExpectCode
+	test.ExpectMessage = c.ExpectMessage
 	test.Authorization = c.Authorization
 	test.XRequestId = c.XRequestId
 
@@ -79,17 +81,16 @@ func (c CreateAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
 
 func (c CreateAuthTest) onExpectMethods() {
 	for name, returns := range c.ExpectMethods {
-		c.onMethod(string(name), returns)
+		c.onMethod(name, returns)
 	}
 }
 
-func (c CreateAuthTest) onMethod(method string, returns returns) {
+func (c CreateAuthTest) onMethod(method method, returns returns) {
 	switch method {
 	case "Publish":
 		header := make(map[string]string)
 		header["XRequestId"] = c.XRequestId
 		header["MessageId"] = ctx.Value("MessageId").(string)
-
 		mockStore.On("Publish", subscriber.CreateAuthEventTopic, &broker.Message{
 			Header: header,
 			Body:   nil,
@@ -123,22 +124,22 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	forms := []CreateAuthTest {
 		{
 			UserId:        "testId1",
+			Email:         "jinhong0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId1", "jinhong0719@naver.com", time.Hour),
 			ExpectMethods: map[method]returns{
 				"Publish": {nil},
 			},
 			ExpectCode:    http.StatusCreated,
+			ExpectMessage: MessageAuthCreated,
 		}, {
-			UserId:        "testId2",
+			UserId:        "testId1",
+			Email:         "richimous0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId1", "richimous0719@naver.com", time.Hour),
 			ExpectMethods: map[method]returns{
 				"Publish": {nil},
 			},
 			ExpectCode:    http.StatusCreated,
-		}, {
-			UserId:        "testId3",
-			ExpectMethods: map[method]returns{
-				"Publish": {nil},
-			},
-			ExpectCode:    http.StatusCreated,
+			ExpectMessage: MessageAuthCreated,
 		},
 	}
 
@@ -151,7 +152,8 @@ func TestAuthCreateManySuccess(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equal(t, test.ExpectCode, resp.Status)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 	}
 
 	mockStore.AssertExpectations(t)
@@ -163,35 +165,30 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 	resp := &proto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
-	var forms = []CreateAuthTest{
-		{
+	var forms = []CreateAuthTest{{
 			UserId:        "testId2",
 			Email:         "jinhong0719@naver.com",
 			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "", time.Hour),
 			ExpectCode:    StatusEmailDuplicate,
+			ExpectMessage: MessageEmailDuplicate,
 		}, {
 			UserId:        "testId2",
 			Email:         "jinhong0719@naver.com",
 			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId1", "jinhong0719@naver.com", time.Hour),
 			ExpectCode:    StatusUserIdDuplicate,
+			ExpectMessage: MessageUserIdDuplicate,
 		}, {
 			UserId:        "testId2",
 			Email:         "jinhong0719@naver.com",
 			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("", "jinhong0719@naver.com", time.Hour),
 			ExpectCode:    StatusUserIdDuplicate,
+			ExpectMessage: MessageUserIdDuplicate,
 		}, {
 			UserId:        "testId2",
 			Email:         "jinhong0719@naver.com",
 			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "jinhong0719@naver.fake", time.Hour),
 			ExpectCode:    StatusEmailDuplicate,
-		}, {
-			UserId:        "testId2",
-			Email:         "jinhong0719@naver.com",
-			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId2", "jinhong0719@naver.com", time.Hour),
-			ExpectCode:    http.StatusCreated,
-			ExpectMethods: map[method]returns{
-				"Publish": {nil},
-			},
+			ExpectMessage: MessageEmailDuplicate,
 		},
 	}
 
@@ -203,13 +200,43 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "assert error test case: %v\n", test)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 	}
 
 	mockStore.AssertExpectations(t)
 }
 
-func TestAuthCreateInsertBadRequest(t *testing.T) {
+func TestBeforeCreateAuthForbidden(t *testing.T) {
+	setUpEnv()
+	req := &proto.BeforeCreateAuthRequest{}
+	resp := &proto.BeforeCreateAuthResponse{}
+	var tests []CreateAuthTest
+
+	var forms = []CreateAuthTest{
+		{
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: "ThisIsInvalidAuthorizationString",
+			ExpectCode:    http.StatusForbidden,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.BeforeCreateAuth(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+	}
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 	setUpEnv()
 	req := &proto.BeforeCreateAuthRequest{}
 	resp := &proto.BeforeCreateAuthResponse{}
@@ -217,56 +244,40 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 
 	forms := []CreateAuthTest{
 		{
-			UserId:     None,
-			ExpectCode: http.StatusBadRequest,
+			UserId: None,
 		}, {
-			UserPw:     None,
-			ExpectCode: http.StatusBadRequest,
+			UserPw: None,
 		}, {
-			UserId:     None,
-			UserPw:     None,
-			ExpectCode: http.StatusBadRequest,
-		}, {
-			Authorization: None,
-			ExpectCode: http.StatusBadRequest,
+			UserId: None,
+			UserPw: None,
 		}, {
 			XRequestId: None,
-			ExpectCode: http.StatusBadRequest,
 		}, {
-			UserPw:     "qwe",
-			ExpectCode: http.StatusBadRequest,
+			Authorization: None,
 		}, {
-			UserId:     "qwe",
-			ExpectCode: http.StatusBadRequest,
+			UserPw: "qwe",
 		}, {
-			UserId:     "qwe",
-			UserPw:     "qwe",
-			ExpectCode: http.StatusBadRequest,
+			UserId: "qwe",
 		}, {
-			UserId:     "qwerqwerqwerqwerqwer",
-			ExpectCode: http.StatusBadRequest,
+			UserId: "qwerqwerqwerqwerqwer",
 		}, {
-			UserPw:     "qwerqwerqwerqwerqwer",
-			ExpectCode: http.StatusBadRequest,
+			UserPw: "qwerqwerqwerqwerqwer",
 		}, {
-			Name:       "박진홍입니다",
-			ExpectCode: http.StatusBadRequest,
+			Name: "박진홍입니다",
 		}, {
-			Name:       "응",
-			ExpectCode: http.StatusBadRequest,
+			Name: "응",
 		}, {
 			PhoneNumber: "0108837834701088378347",
-			ExpectCode: http.StatusBadRequest,
 		}, {
 			Email: "itIsNotEmailFormat",
-			ExpectCode: http.StatusBadRequest,
 		}, {
 			Email: "itIsSoVeryTooLongEmail@naver.com",
-			ExpectCode: http.StatusBadRequest,
 		},
 	}
 
 	for _, form := range forms {
+		form.ExpectCode = http.StatusBadRequest
+		form.ExpectMessage = MessageBadRequest
 		tests = append(tests, form.createTestFromForm())
 	}
 
@@ -274,7 +285,8 @@ func TestAuthCreateInsertBadRequest(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equal(t, test.ExpectCode, resp.Status)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 	}
 
 	mockStore.AssertExpectations(t)
