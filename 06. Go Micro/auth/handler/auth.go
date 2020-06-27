@@ -2,7 +2,6 @@ package handler
 
 import (
 	"auth/dao"
-	"auth/dao/user"
 	proto "auth/proto/auth"
 	"auth/subscriber"
 	"auth/tool/jwt"
@@ -29,10 +28,20 @@ func NewAuth(mq broker.Broker, adc *dao.AuthDAOCreator, validate *validator.Vali
 	}
 }
 
-func (e *auth) CheckIfUserIdExist(ctx context.Context, req *proto.UserIdExistRequest, rsp *proto.UserIdExistResponse) (_ error) {
+func (e *auth) UserIdDuplicated(ctx context.Context, req *proto.UserIdDuplicatedRequest, rsp *proto.UserIdDuplicatedResponse) (_ error) {
 	if err := e.validate.Struct(req); err != nil {
-		rsp.SetResponse(http.StatusBadRequest, err.Error())
+		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return
+	}
+
+	var email string
+	if req.Authorization != "" {
+		claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
+		if err != nil {
+			rsp.SetStatus(http.StatusForbidden)
+			return
+		}
+		email = claim.Email
 	}
 
 	var ad dao.AuthDAOService
@@ -44,32 +53,32 @@ func (e *auth) CheckIfUserIdExist(ctx context.Context, req *proto.UserIdExistReq
 		ad = e.adc.GetDefaultAuthDAO()
 	}
 
-	exist, err := ad.CheckIfUserIdExists(req.UserId)
+	// 로깅 추가
+	exist, err := ad.CheckIfUserIdExist(req.UserId)
 	if err != nil {
-		rsp.SetResponse(http.StatusInternalServerError, err.Error())
+		rsp.SetStatus(http.StatusInternalServerError)
 		return
 	}
 
 	if exist {
-		rsp.SetResponse(StatusUserIdDuplicate, user.IdDuplicateError.Error())
+		rsp.SetStatusAndMsg(StatusUserIdDuplicate, MessageUserIdDuplicate)
 		return
 	}
 
-	ss, err := jwt.GenerateDuplicateCertJWT(req.UserId, "", time.Hour)
+	ss, err := jwt.GenerateDuplicateCertJWT(req.UserId, email, time.Hour)
 	if err != nil {
-		rsp.SetResponse(http.StatusInternalServerError, err.Error())
+		rsp.SetStatus(http.StatusInternalServerError)
 		return
 	}
 
-	rsp.SetResponse(http.StatusOK, "this user ID can be used")
+	rsp.SetStatusAndMsg(http.StatusOK, MessageUserIdNotDuplicated)
 	rsp.Authorization = ss
 	return
 }
 
 func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuthRequest, rsp *proto.BeforeCreateAuthResponse) (_ error) {
 	if err := e.validate.Struct(req); err != nil {
-		rsp.Status = http.StatusBadRequest
-		rsp.Message = err.Error()
+		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return
 	}
 
@@ -77,24 +86,22 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	var mId string
 	switch ctx.Value("env") {
 	case "test": 	mId = ctx.Value("MessageId").(string)
-	default: 		mId = random.GenerateString(32)
+	default:		mId = random.GenerateString(32)
 	}
 
 	claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
 	if err != nil {
-		rsp.Status = http.StatusInternalServerError
+		rsp.SetStatus(http.StatusForbidden)
 		return
 	}
 
 	if claim.UserId != req.UserId {
-		rsp.Status = StatusUserIdDuplicate
-		rsp.Message = "this user iD is already in use"
+		rsp.SetStatusAndMsg(StatusUserIdDuplicate, MessageUserIdDuplicate)
 		return
 	}
 
 	if claim.Email != req.Email {
-		rsp.Status = StatusEmailDuplicate
-		rsp.Message = "this email is already in use"
+		rsp.SetStatusAndMsg(StatusEmailDuplicate, MessageEmailDuplicate)
 		return
 	}
 
@@ -102,15 +109,15 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	header["XRequestId"] = req.XRequestID
 	header["MessageId"] = mId
 
+	// body Marshaling 추가
 	if err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
 		Header: header,
 		Body:   nil,
 	}); err != nil {
-		rsp.Status = http.StatusInternalServerError
+		rsp.SetStatus(http.StatusInternalServerError)
 		return
 	}
 
-	rsp.Status = http.StatusCreated
-	rsp.Message = "User created reservation has been successfully processed."
+	rsp.SetStatusAndMsg(http.StatusCreated, MessageAuthCreated)
 	return
 }
