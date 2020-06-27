@@ -8,7 +8,6 @@ import (
 	"auth/tool/jwt"
 	"auth/tool/random"
 	"context"
-	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/mock"
@@ -74,6 +73,13 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 		return
 	}
 
+	// test 환경 시 context에서 MessageId 추출, 아닐 시 새로 생성
+	var mId string
+	switch ctx.Value("env") {
+	case "test": 	mId = ctx.Value("MessageId").(string)
+	default: 		mId = random.GenerateString(32)
+	}
+
 	claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
 	if err != nil {
 		rsp.Status = http.StatusInternalServerError
@@ -93,14 +99,18 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	}
 
 	header := make(map[string]string)
-	header["X-Request-ID"] = req.XRequestID
-	header["MessageId"] = random.GenerateString(16)
-	header["Timestamp"] = time.Now().Format(time.RFC3339)
-	fmt.Println(header)
+	header["XRequestId"] = req.XRequestID
+	header["MessageId"] = mId
 
-	err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
+	if err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
 		Header: header,
 		Body:   nil,
-	})
+	}); err != nil {
+		rsp.Status = http.StatusInternalServerError
+		return
+	}
+
+	rsp.Status = http.StatusCreated
+	rsp.Message = "User created reservation has been successfully processed."
 	return
 }
