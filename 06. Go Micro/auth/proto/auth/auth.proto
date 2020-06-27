@@ -4,16 +4,16 @@ package examples.blog.service.auth;
 
 service Auth {
     rpc BeforeCreateAuth(BeforeCreateAuthRequest) returns (BeforeCreateAuthResponse) {}
-    rpc CheckIfUserIdExist(UserIdExistRequest) returns (UserIdExistResponse) {}
+    rpc UserIdDuplicated(UserIdDuplicatedRequest) returns (UserIdDuplicatedResponse) {}
 }
 
-message UserIdExistRequest {
+message UserIdDuplicatedRequest {
     string user_id = 1;
     string authorization = 2;
     string XRequestID = 3;
 }
 
-message UserIdExistResponse {
+message UserIdDuplicatedResponse {
     int64 status = 1;
     string message = 2;
     string authorization = 3;

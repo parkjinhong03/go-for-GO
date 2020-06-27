@@ -35,7 +35,7 @@ var _ server.Option
 
 type AuthService interface {
 	BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, opts ...client.CallOption) (*BeforeCreateAuthResponse, error)
-	CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, opts ...client.CallOption) (*UserIdExistResponse, error)
+	UserIdDuplicated(ctx context.Context, in *UserIdDuplicatedRequest, opts ...client.CallOption) (*UserIdDuplicatedResponse, error)
 }
 
 type authService struct {
@@ -60,9 +60,9 @@ func (c *authService) BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuth
 	return out, nil
 }
 
-func (c *authService) CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, opts ...client.CallOption) (*UserIdExistResponse, error) {
-	req := c.c.NewRequest(c.name, "Auth.CheckIfUserIdExist", in)
-	out := new(UserIdExistResponse)
+func (c *authService) UserIdDuplicated(ctx context.Context, in *UserIdDuplicatedRequest, opts ...client.CallOption) (*UserIdDuplicatedResponse, error) {
+	req := c.c.NewRequest(c.name, "Auth.UserIdDuplicated", in)
+	out := new(UserIdDuplicatedResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -74,13 +74,13 @@ func (c *authService) CheckIfUserIdExist(ctx context.Context, in *UserIdExistReq
 
 type AuthHandler interface {
 	BeforeCreateAuth(context.Context, *BeforeCreateAuthRequest, *BeforeCreateAuthResponse) error
-	CheckIfUserIdExist(context.Context, *UserIdExistRequest, *UserIdExistResponse) error
+	UserIdDuplicated(context.Context, *UserIdDuplicatedRequest, *UserIdDuplicatedResponse) error
 }
 
 func RegisterAuthHandler(s server.Server, hdlr AuthHandler, opts ...server.HandlerOption) error {
 	type auth interface {
 		BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuthRequest, out *BeforeCreateAuthResponse) error
-		CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error
+		UserIdDuplicated(ctx context.Context, in *UserIdDuplicatedRequest, out *UserIdDuplicatedResponse) error
 	}
 	type Auth struct {
 		auth
@@ -97,6 +97,6 @@ func (h *authHandler) BeforeCreateAuth(ctx context.Context, in *BeforeCreateAuth
 	return h.AuthHandler.BeforeCreateAuth(ctx, in, out)
 }
 
-func (h *authHandler) CheckIfUserIdExist(ctx context.Context, in *UserIdExistRequest, out *UserIdExistResponse) error {
-	return h.AuthHandler.CheckIfUserIdExist(ctx, in, out)
+func (h *authHandler) UserIdDuplicated(ctx context.Context, in *UserIdDuplicatedRequest, out *UserIdDuplicatedResponse) error {
+	return h.AuthHandler.UserIdDuplicated(ctx, in, out)
 }
