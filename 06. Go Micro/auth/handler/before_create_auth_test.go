@@ -6,6 +6,7 @@ import (
 	"auth/tool/jwt"
 	"auth/tool/random"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
@@ -287,6 +288,38 @@ func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
+	}
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestBeforeCreateAuthServerError(t *testing.T) {
+	setUpEnv()
+	req := &proto.BeforeCreateAuthRequest{}
+	resp := &proto.BeforeCreateAuthResponse{}
+	var tests []CreateAuthTest
+
+	var forms = []CreateAuthTest{
+		{
+			UserId:        "testId1",
+			Email:         "richimous0719@naver.com",
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("testId1", "richimous0719@naver.com", time.Hour),
+			ExpectMethods: map[method]returns{
+				"Publish": {errors.New("")},
+			},
+			ExpectCode:    http.StatusInternalServerError,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.BeforeCreateAuth(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
 	}
 
 	mockStore.AssertExpectations(t)
