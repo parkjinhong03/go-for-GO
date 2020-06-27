@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"auth/adapter/broker"
 	"auth/dao"
 	"auth/tool/validator"
 	"context"
@@ -28,7 +29,8 @@ func init() {
 	adc := dao.NewAuthDAOCreator(nil)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
-	h = NewAuth(nil, adc, validate)
+	b := broker.NewRabbitMQForTest(&mockStore)
+	h = NewAuth(b, adc, validate)
 }
 
 func setUpEnv() () {
