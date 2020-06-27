@@ -41,7 +41,7 @@ func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 	return
 }
 
-func (d *defaultDAO) CheckIfUserIdExists(id string) (exist bool, err error) {
+func (d *defaultDAO) CheckIfUserIdExist(id string) (exist bool, err error) {
 	auth := new(model.Auth)
 	result := d.db.Where("user_id = ?", id).Find(auth)
 	if err = result.Error; err != nil { return }

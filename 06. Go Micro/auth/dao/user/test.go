@@ -21,7 +21,7 @@ func (td *testDAO) Insert(auth *model.Auth) (*model.Auth, error) {
 	return args.Get(0).(*model.Auth), args.Error(1)
 }
 
-func (td *testDAO) CheckIfUserIdExists(id string) (bool, error) {
+func (td *testDAO) CheckIfUserIdExist(id string) (bool, error) {
 	args := td.mock.Called(id)
 	return args.Bool(0), args.Error(1)
 }
