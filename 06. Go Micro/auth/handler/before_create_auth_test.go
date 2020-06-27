@@ -28,23 +28,13 @@ type CreateAuthTest struct {
 	Introduction  string
 	Authorization string
 	XRequestId    string
-	ExpectCode    int64
+	ExpectCode    uint32
 	ExpectMessage string
 	ExpectMethods map[method]returns
 }
 
 func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
-	test.UserId = c.UserId
-	test.UserPw = c.UserPw
-	test.Name = c.Name
-	test.PhoneNumber = c.PhoneNumber
-	test.Introduction = c.Introduction
-	test.Email = c.Email
-	test.ExpectMethods = c.ExpectMethods
-	test.ExpectCode = c.ExpectCode
-	test.ExpectMessage = c.ExpectMessage
-	test.Authorization = c.Authorization
-	test.XRequestId = c.XRequestId
+	test = c
 
 	if c.UserId == None 		{ test.UserId = "" } 		else if c.UserId == "" 		  { test.UserId = DefaultUserId }
 	if c.UserPw == None 		{ test.UserPw = "" } 		else if c.UserPw == "" 		  { test.UserPw = DefaultUserPw }
