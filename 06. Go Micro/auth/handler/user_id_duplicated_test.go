@@ -3,6 +3,7 @@ package handler
 import (
 	proto "auth/proto/auth"
 	"auth/tool/jwt"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -202,5 +203,35 @@ func TestUserIdDuplicatedBadRequest(t *testing.T) {
 		_ = h.UserIdDuplicated(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
+	}
+}
+
+func TestUserIdDuplicatedServerError(t *testing.T) {
+	setUpEnv()
+	req := &proto.UserIdDuplicatedRequest{}
+	resp := &proto.UserIdDuplicatedResponse{}
+	var tests []userIdExistTest
+
+	forms := []userIdExistTest{
+		{
+			UserId: "TestId1",
+			ExpectMethods: map[method]returns{
+				"CheckIfUserIdExist": {true, errors.New("")},
+			},
+			ExpectCode: http.StatusInternalServerError,
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectCode = http.StatusInternalServerError
+		form.ExpectMessage = MessageBadRequest
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.UserIdDuplicated(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
 	}
 }
