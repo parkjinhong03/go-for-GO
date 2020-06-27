@@ -14,7 +14,7 @@ message UserIdDuplicatedRequest {
 }
 
 message UserIdDuplicatedResponse {
-    int64 status = 1;
+    uint32 status = 1;
     string message = 2;
     string authorization = 3;
 }
@@ -31,10 +31,15 @@ message BeforeCreateAuthRequest {
 }
 
 message BeforeCreateAuthResponse {
-    int64 status = 1;
+    uint32 status = 1;
     string message = 2;
 }
 
-message Message {
-	string say = 1;
+message CreateAuthMessage {
+	string user_id = 1;
+	string user_pw = 2;
+	string name = 3;
+	string phone_number = 4;
+	string email = 5;
+	string introduction = 6;
 }
