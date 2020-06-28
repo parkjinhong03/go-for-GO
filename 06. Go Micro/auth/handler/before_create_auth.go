@@ -6,6 +6,7 @@ import (
 	"auth/tool/jwt"
 	"auth/tool/random"
 	"context"
+	"encoding/json"
 	"github.com/micro/go-micro/v2/broker"
 	"net/http"
 )
@@ -43,10 +44,23 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	header["XRequestId"] = req.XRequestID
 	header["MessageId"] = mId
 
-	// body Marshaling 추가
+	body := proto.CreateAuthMessage{
+		UserId:       req.UserId,
+		UserPw:       req.UserPw,
+		Name:         req.Name,
+		PhoneNumber:  req.PhoneNumber,
+		Email:        req.Email,
+		Introduction: req.Introduction,
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		rsp.SetStatus(http.StatusInternalServerError)
+	}
+
 	if err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
 		Header: header,
-		Body:   nil,
+		Body:   b,
 	}); err != nil {
 		rsp.SetStatus(http.StatusInternalServerError)
 		return
