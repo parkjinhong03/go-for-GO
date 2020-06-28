@@ -35,7 +35,7 @@ func main() {
 	)
 
 	// 이벤트 및 rpc 핸들러 객체 생성
-	s := subscriber.NewMsgHandler(adc, validate)
+	s := subscriber.NewAuth(adc, validate)
 	// mq := service.Options().Broker
 	h := handler.NewAuth(rbMQ, adc, validate)
 
