@@ -11,6 +11,10 @@ import (
 var mockStore mock.Mock
 var authId uint
 var h *auth
+var event = &CustomEvent{
+	mock: &mockStore,
+	msg:  &broker.Message{},
+}
 
 const (
 	none = "none"
@@ -30,6 +34,7 @@ func init() {
 
 func setUp() {
 	mockStore = mock.Mock{}
+	event.clearMessage()
 	authId = 0
 }
 
@@ -60,4 +65,9 @@ func (e *CustomEvent) Message() *broker.Message {
 func (e *CustomEvent) setMessage(header map[string]string, body []byte) {
 	e.msg.Header = header
 	e.msg.Body = body
+}
+
+func (e *CustomEvent) clearMessage() {
+	e.msg.Header = map[string]string{}
+	e.msg.Body = []byte{}
 }
