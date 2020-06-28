@@ -10,19 +10,19 @@ import (
 	"github.com/micro/go-micro/v2/broker"
 )
 
-type msgHandler struct {
+type auth struct {
 	adc      *dao.AuthDAOCreator
 	validate *validator.Validate
 }
 
-func NewMsgHandler(adc *dao.AuthDAOCreator, validate *validator.Validate) *msgHandler {
-	return &msgHandler{
+func NewAuth(adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
+	return &auth{
 		adc:      adc,
 		validate: validate,
 	}
 }
 
-func (m *msgHandler) CreateAuth(e broker.Event) (err error) {
+func (m *auth) CreateAuth(e broker.Event) (err error) {
 	body := proto.CreateAuthMessage{}
 	if err = json.Unmarshal(e.Message().Body, &body); err != nil {
 		// 에러 기록
@@ -55,12 +55,12 @@ func (m *msgHandler) CreateAuth(e broker.Event) (err error) {
 		return nil
 	}
 
-	if err := e.Ack(); err != nil {
+	if err = e.Ack(); err != nil {
 		ad.Rollback()
 		// 에러 기록
-	} else {
-		// 정상 처리 기록
+		return nil
 	}
+	// 정상 처리 기록
 
 	ad.Commit()
 	return nil
