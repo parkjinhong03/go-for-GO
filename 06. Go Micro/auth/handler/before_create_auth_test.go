@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"log"
 	"net/http"
 	"testing"
@@ -129,15 +130,17 @@ func TestAuthCreateManySuccess(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		mockStore = mock.Mock{}
+
 		ctx = context.WithValue(ctx, "MessageId", random.GenerateString(32))
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
-	}
 
-	mockStore.AssertExpectations(t)
+		mockStore.AssertExpectations(t)
+	}
 }
 
 func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
@@ -178,14 +181,16 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		mockStore = mock.Mock{}
+
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
-	}
 
-	mockStore.AssertExpectations(t)
+		mockStore.AssertExpectations(t)
+	}
 }
 
 func TestBeforeCreateAuthForbidden(t *testing.T) {
@@ -208,13 +213,15 @@ func TestBeforeCreateAuthForbidden(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		mockStore = mock.Mock{}
+
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
-	}
 
-	mockStore.AssertExpectations(t)
+		mockStore.AssertExpectations(t)
+	}
 }
 
 func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
@@ -263,14 +270,16 @@ func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		mockStore = mock.Mock{}
+
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
-	}
 
-	mockStore.AssertExpectations(t)
+		mockStore.AssertExpectations(t)
+	}
 }
 
 func TestBeforeCreateAuthServerError(t *testing.T) {
@@ -296,11 +305,13 @@ func TestBeforeCreateAuthServerError(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		mockStore = mock.Mock{}
+
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
 		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
-	}
 
-	mockStore.AssertExpectations(t)
+		mockStore.AssertExpectations(t)
+	}
 }
