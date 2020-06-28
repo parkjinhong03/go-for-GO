@@ -18,6 +18,15 @@ func main() {
 	// 플러그인 객체 생성
 	rbMQ := broker.ConnRabbitMQ()
 
+	// 의존성 주입을 위한 객체 생성
+	conn, err := db.ConnMysql()
+	if err != nil {
+		log.Fatalf("unable to connect mysql server, err: %v\n", err)
+	}
+	adc := dao.NewAuthDAOCreator(conn)
+	validate, err := validator.New()
+	if err != nil { log.Fatal(err) }
+
 	// 서비스 생성
 	service := micro.NewService(
 		micro.Name("examples.blog.service.auth"),
@@ -25,10 +34,12 @@ func main() {
 		micro.Broker(rbMQ),
 	)
 
-	// 이벤트 핸들러 객체 생성
-	s := subscriber.NewAuth()
+	// 이벤트 및 rpc 핸들러 객체 생성
+	s := subscriber.NewMsgHandler(adc, validate)
+	// mq := service.Options().Broker
+	h := handler.NewAuth(rbMQ, adc, validate)
 
-	// 메시지 브로커(MQ) 핸들러 생성
+	// 초기화 핸들러 함수 생성
 	brkHandleFunc := func() (err error) {
 		brk := service.Options().Broker
 		if err = brk.Connect(); err != nil { log.Fatal(err) }
@@ -41,23 +52,10 @@ func main() {
 		return
 	}
 
-	// 서비스 초기화
+	// 서비스 초기화 등록
 	service.Init(
 		micro.AfterStart(brkHandleFunc),
 	)
-
-	// 의존성 주입을 위한 객체 생성
-	mq := service.Options().Broker
-	conn, err := db.ConnMysql()
-	if err != nil {
-		log.Fatalf("unable to connect mysql server, err: %v\n", err)
-	}
-	adc := dao.NewAuthDAOCreator(conn)
-	validate, err := validator.New()
-	if err != nil { log.Fatal(err) }
-
-	// rpc 핸들러 객체 생성
-	h := handler.NewAuth(mq, adc, validate)
 
 	// 핸들러 등록 및 서비스 실행
  	if err := auth.RegisterAuthHandler(service.Server(), h); err != nil {
