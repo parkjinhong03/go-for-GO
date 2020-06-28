@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
-	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"log"
@@ -29,8 +28,9 @@ type createAuthTest struct {
 	Email            string
 	Introduction     string
 	XRequestId       string
+	MessageId		 string
 	ExpectMethods    map[method]returns
-	ExpectIfErrIsNil bool
+	ExpectError  	 error
 }
 
 func (c createAuthTest) createTestFromForm() (test createAuthTest) {
@@ -43,6 +43,7 @@ func (c createAuthTest) createTestFromForm() (test createAuthTest) {
 	if c.Introduction == none	{ test.Introduction = "" } 	else if c.Introduction == ""  { test.Introduction = "" }
 	if c.Email == none 			{ test.Email = "" } 		else if c.Email == "" 		  { test.Email = defaultEmail }
 	if c.XRequestId == none 	{ test.XRequestId = "" }	else if c.XRequestId == ""	  { test.XRequestId = uuid.New().String() }
+	if c.MessageId == none      { test.MessageId = "" }		else if c.MessageId == ""	  { test.MessageId = random.GenerateString(32) }
 
 	if _, ok := c.ExpectMethods["Insert"]; ok {
 		test.setAuthContext(c.ExpectMethods["Insert"][0].(*model.Auth))
@@ -90,6 +91,7 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		mockStore.On("Rollback").Return(returns...)
 	case "Ack":
 		mockStore.On("Ack").Return(returns...)
+		// 분산 추적 관련 메서드 추가
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
 	}
@@ -98,7 +100,7 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 func (c createAuthTest) generateMsgHeader() (header map[string]string) {
 	header = make(map[string]string)
 	header["XRequestId"] = c.XRequestId
-	header["MessageId"] = random.GenerateString(32)
+	header["MessageId"] = c.MessageId
 	header["Env"] = "Test"
 
 	return
@@ -107,10 +109,6 @@ func (c createAuthTest) generateMsgHeader() (header map[string]string) {
 func TestCreateAuthValidMessage(t *testing.T) {
 	setUp()
 	msg := &proto.CreateAuthMessage{}
-	event := &CustomEvent{
-		mock: &mockStore,
-		msg:  &broker.Message{},
-	}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{
@@ -120,20 +118,20 @@ func TestCreateAuthValidMessage(t *testing.T) {
 				"Ack":    {nil},
 				"Commit": {&gorm.DB{}},
 			},
-			ExpectIfErrIsNil: true,
+			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
 				"Insert":   {&model.Auth{}, errors.New("user id duplicated error")},
 				"Rollback": {&gorm.DB{}},
 			},
-			ExpectIfErrIsNil: true,
+			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
 				"Insert":   {&model.Auth{}, nil},
 				"Ack":      {errors.New("some error occurs while acknowledge message")},
 				"Rollback": {&gorm.DB{}},
 			},
-			ExpectIfErrIsNil: true,
+			ExpectError: nil,
 		},
 	}
 
@@ -153,7 +151,95 @@ func TestCreateAuthValidMessage(t *testing.T) {
 		event.setMessage(header, body)
 
 		err = h.CreateAuth(event)
-		assert.Equalf(t, test.ExpectIfErrIsNil, err==nil, "error assert error (test case: %v)\n", test)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestCreateAuthUnmarshalErrorMessage(t *testing.T) {
+	setUp()
+	msg := &proto.CreateAuthMessage{}
+	var tests []createAuthTest
+
+	forms := []createAuthTest{{ExpectError: ErrorBadRequest}}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body := []byte("unableToUnmarshalThisByteArrToStruct")
+		event.setMessage(header, body)
+
+		err := h.CreateAuth(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestCreateAuthInValidMessage(t *testing.T) {
+	setUp()
+	msg := &proto.CreateAuthMessage{}
+	var tests []createAuthTest
+
+	forms := []createAuthTest{
+		{
+			UserId: none,
+		}, {
+			UserPw: none,
+		}, {
+			UserId: none,
+			UserPw: none,
+		}, {
+			XRequestId: none,
+		}, {
+			MessageId: none,
+		}, {
+			UserPw: "qwe",
+		}, {
+			UserId: "qwe",
+		}, {
+			UserId: "qwerqwerqwerqwerqwer",
+		}, {
+			UserPw: "qwerqwerqwerqwerqwer",
+		}, {
+			Name: "박진홍입니다",
+		}, {
+			Name: "응",
+		}, {
+			PhoneNumber: "0108837834701088378347",
+		}, {
+			Email: "itIsNotEmailFormat",
+		}, {
+			Email: "itIsSoVeryTooLongEmail@naver.com",
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectError = ErrorBadRequest
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, _ := json.Marshal(msg)
+		event.setMessage(header, body)
+
+		err := h.CreateAuth(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
 
 		mockStore.AssertExpectations(t)
 	}
