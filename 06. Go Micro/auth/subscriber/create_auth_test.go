@@ -10,6 +10,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
+	"github.com/micro/go-micro/v2/broker"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"log"
 	"testing"
 	"time"
 )
@@ -18,14 +22,15 @@ type method string
 type returns []interface{}
 
 type createAuthTest struct {
-	UserId        string
-	UserPw        string
-	Name          string
-	PhoneNumber   string
-	Email         string
-	Introduction  string
-	XRequestId    string
-	ExpectMethods map[method]returns
+	UserId           string
+	UserPw           string
+	Name             string
+	PhoneNumber      string
+	Email            string
+	Introduction     string
+	XRequestId       string
+	ExpectMethods    map[method]returns
+	ExpectIfErrIsNil bool
 }
 
 func (c createAuthTest) createTestFromForm() (test createAuthTest) {
@@ -56,7 +61,7 @@ func (c createAuthTest) setAuthContext(auth *model.Auth) {
 	authId++
 }
 
-func (c createAuthTest) setRequestContext(req *proto.CreateAuthMessage) {
+func (c createAuthTest) setMessageContext(req *proto.CreateAuthMessage) {
 	req.UserId = c.UserId
 	req.UserPw = c.UserPw
 	req.Name = c.Name
@@ -90,29 +95,45 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 	}
 }
 
+func (c createAuthTest) generateMsgHeader() (header map[string]string) {
+	header = make(map[string]string)
+	header["XRequestId"] = c.XRequestId
+	header["MessageId"] = random.GenerateString(32)
+	header["Env"] = "Test"
+
+	return
+}
+
 func TestCreateAuthValidMessage(t *testing.T) {
 	setUp()
 	msg := &proto.CreateAuthMessage{}
+	event := &CustomEvent{
+		mock: &mockStore,
+		msg:  &broker.Message{},
+	}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{
 		{
 			ExpectMethods: map[method]returns{
 				"Insert": {&model.Auth{}, nil},
-				"Ack": {nil},
+				"Ack":    {nil},
 				"Commit": {&gorm.DB{}},
 			},
+			ExpectIfErrIsNil: true,
 		}, {
 			ExpectMethods: map[method]returns{
-				"Insert": {&model.Auth{}, errors.New("user id duplicated error")},
+				"Insert":   {&model.Auth{}, errors.New("user id duplicated error")},
 				"Rollback": {&gorm.DB{}},
 			},
+			ExpectIfErrIsNil: true,
 		}, {
 			ExpectMethods: map[method]returns{
-				"Insert": {&model.Auth{}, nil},
-				"Ack": {errors.New("some error occurs while acknowledge message")},
+				"Insert":   {&model.Auth{}, nil},
+				"Ack":      {errors.New("some error occurs while acknowledge message")},
 				"Rollback": {&gorm.DB{}},
 			},
+			ExpectIfErrIsNil: true,
 		},
 	}
 
@@ -121,17 +142,19 @@ func TestCreateAuthValidMessage(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test.setRequestContext(msg)
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
 		test.onExpectMethods()
 
-		header := make(map[string]string)
-		header["XRequestId"] = test.XRequestId
-		header["MessageId"] = random.GenerateString(32)
-		header["Env"] = "Test"
+		header := test.generateMsgHeader()
+		body, err := json.Marshal(msg)
+		if err != nil { log.Fatal(err) }
+		event.setMessage(header, body)
 
-		body, _ := json.Marshal(msg)
-		_ = h.CreateAuth(NewCustomEvent(mockStore, header, body))
+		err = h.CreateAuth(event)
+		assert.Equalf(t, test.ExpectIfErrIsNil, err==nil, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
 	}
-
-	mockStore.AssertExpectations(t)
 }
