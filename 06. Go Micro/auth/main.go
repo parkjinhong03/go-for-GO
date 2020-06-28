@@ -9,7 +9,9 @@ import (
 	"auth/subscriber"
 	"auth/tool/validator"
 	"github.com/micro/go-micro/v2"
+	br "github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
+	"github.com/micro/go-plugins/broker/rabbitmq/v2"
 )
 
 func main() {
@@ -30,7 +32,11 @@ func main() {
 	brkHandleFunc := func() (err error) {
 		brk := service.Options().Broker
 		if err = brk.Connect(); err != nil { log.Fatal(err) }
-		if _, err = brk.Subscribe(subscriber.CreateAuthEventTopic, s.CreateAuth); err != nil { log.Fatal(err) }
+		_, err = brk.Subscribe(subscriber.CreateAuthEventTopic, s.CreateAuth,
+			br.Queue(subscriber.CreateAuthEventTopic), // Queue 정적 이름 설정
+			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
+			rabbitmq.DurableQueue()) // Queue 연결을 종료해도 삭제X 설정
+		if err != nil { log.Fatal(err) }
 		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
 		return
 	}
