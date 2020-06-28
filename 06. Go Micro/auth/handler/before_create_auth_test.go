@@ -51,16 +51,6 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	return
 }
 
-//func (c CreateAuthTest) setAuthTupleContext(auth *model.Auth, id uint) {
-//	auth.ID = id
-//	auth.UserId = c.UserId
-//	auth.UserPw = c.UserPw
-//	auth.Status = user.CreatePending
-//	auth.CreatedAt = time.Now()
-//	auth.UpdatedAt = time.Now()
-//	id++
-//}
-
 func (c CreateAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
 	req.UserId = c.UserId
 	req.UserPw = c.UserPw
@@ -103,20 +93,6 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
 	}
-	//switch method {
-	//case "Insert":
-	//	mockStore.On("Insert", &model.Auth{
-	//		UserId: c.UserId,
-	//		UserPw: c.UserPw,
-	//		Status: user.CreatePending,
-	//	}).Return(returns...)
-	//case "Commit":
-	//	mockStore.On("Commit").Return(returns...)
-	//case "Rollback":
-	//	mockStore.On("Rollback").Return(returns...)
-	//default:
-	//	log.Fatalf("%s method cannot be on booked\n", method)
-	//}
 	return
 }
 
