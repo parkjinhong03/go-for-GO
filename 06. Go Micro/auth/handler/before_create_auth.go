@@ -20,8 +20,10 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	// test 환경 시 context에서 MessageId 추출, 아닐 시 새로 생성
 	var mId string
 	switch ctx.Value("env") {
-	case "test": 	mId = ctx.Value("MessageId").(string)
-	default:		mId = random.GenerateString(32)
+	case "test":
+		mId = ctx.Value("MessageId").(string)
+	default:
+		mId = random.GenerateString(32)
 	}
 
 	claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
