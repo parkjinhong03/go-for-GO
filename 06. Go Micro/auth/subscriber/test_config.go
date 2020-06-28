@@ -8,9 +8,9 @@ import (
 	"log"
 )
 
-var mockStore *mock.Mock
+var mockStore mock.Mock
 var authId uint
-var h *msgHandler
+var h *auth
 
 const (
 	none = "none"
@@ -22,31 +22,20 @@ const (
 )
 
 func init() {
-	mockStore = new(mock.Mock)
 	adc := dao.NewAuthDAOCreator(nil)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
-	h = NewMsgHandler(adc, validate)
+	h = NewAuth(adc, validate)
 }
 
 func setUp() {
-	mockStore = new(mock.Mock)
+	mockStore = mock.Mock{}
 	authId = 0
 }
 
 type CustomEvent struct {
 	mock *mock.Mock
 	msg *broker.Message
-}
-
-func NewCustomEvent(mock *mock.Mock, header map[string]string, body []byte) *CustomEvent {
-	return &CustomEvent{
-		mock: mock,
-		msg: &broker.Message{
-			Header: header,
-			Body:   body,
-		},
-	}
 }
 
 func (e *CustomEvent) Ack() error {
@@ -66,4 +55,9 @@ func (e *CustomEvent) Topic() string {
 
 func (e *CustomEvent) Message() *broker.Message {
 	return e.msg
+}
+
+func (e *CustomEvent) setMessage(header map[string]string, body []byte) {
+	e.msg.Header = header
+	e.msg.Body = body
 }
