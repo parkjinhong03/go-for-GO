@@ -6,11 +6,13 @@ import (
 	"auth/tool/jwt"
 	"auth/tool/random"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -82,9 +84,21 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 		header := make(map[string]string)
 		header["XRequestId"] = c.XRequestId
 		header["MessageId"] = ctx.Value("MessageId").(string)
+
+		body := proto.CreateAuthMessage{
+			UserId:       c.UserId,
+			UserPw:       c.UserPw,
+			Name:         c.Name,
+			PhoneNumber:  c.PhoneNumber,
+			Email:        c.Email,
+			Introduction: c.Introduction,
+		}
+		b, err := json.Marshal(body)
+		if err != nil { log.Fatal(err) }
+
 		mockStore.On("Publish", subscriber.CreateAuthEventTopic, &broker.Message{
 			Header: header,
-			Body:   nil,
+			Body:   b,
 		}).Return(returns...)
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
