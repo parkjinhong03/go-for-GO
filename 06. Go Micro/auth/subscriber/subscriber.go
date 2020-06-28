@@ -6,8 +6,13 @@ import (
 	"auth/model"
 	proto "auth/proto/auth"
 	"encoding/json"
+	"errors"
 	"github.com/go-playground/validator/v10"
 	"github.com/micro/go-micro/v2/broker"
+)
+
+var (
+	ErrorBadRequest = errors.New("bad request")
 )
 
 type auth struct {
@@ -22,16 +27,21 @@ func NewAuth(adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
 	}
 }
 
-func (m *auth) CreateAuth(e broker.Event) (err error) {
-	body := proto.CreateAuthMessage{}
-	if err = json.Unmarshal(e.Message().Body, &body); err != nil {
-		// 에러 기록
-		return
+func (m *auth) CreateAuth(e broker.Event) error {
+	header := e.Message().Header
+	if header["XRequestId"] == "" || header["MessageId"] == "" {
+		return ErrorBadRequest
 	}
 
-	if err = m.validate.Struct(&body); err != nil {
+	body := proto.CreateAuthMessage{}
+	if err := json.Unmarshal(e.Message().Body, &body); err != nil {
 		// 에러 기록
-		return
+		return ErrorBadRequest
+	}
+
+	if err := m.validate.Struct(&body); err != nil {
+		// 에러 기록
+		return ErrorBadRequest
 	}
 
 	// 중복 메시지 처리 로직 추가
@@ -45,7 +55,7 @@ func (m *auth) CreateAuth(e broker.Event) (err error) {
 	}
 
 	var _ *model.Auth
-	if _, err = ad.Insert(&model.Auth{
+	if _, err := ad.Insert(&model.Auth{
 		UserId: body.UserId,
 		UserPw: body.UserPw,
 		Status: user.CreatePending,
@@ -55,7 +65,7 @@ func (m *auth) CreateAuth(e broker.Event) (err error) {
 		return nil
 	}
 
-	if err = e.Ack(); err != nil {
+	if err := e.Ack(); err != nil {
 		ad.Rollback()
 		// 에러 기록
 		return nil
