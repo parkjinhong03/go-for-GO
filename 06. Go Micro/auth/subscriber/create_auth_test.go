@@ -4,8 +4,13 @@ import (
 	"auth/dao/user"
 	"auth/model"
 	proto "auth/proto/auth"
+	"auth/tool/random"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
+	"testing"
 	"time"
 )
 
@@ -51,14 +56,13 @@ func (c createAuthTest) setAuthContext(auth *model.Auth) {
 	authId++
 }
 
-func (c createAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
+func (c createAuthTest) setRequestContext(req *proto.CreateAuthMessage) {
 	req.UserId = c.UserId
 	req.UserPw = c.UserPw
 	req.Name = c.Name
 	req.Email = c.Email
 	req.PhoneNumber = c.PhoneNumber
 	req.Introduction = c.Introduction
-	req.XRequestID = c.XRequestId
 }
 
 func (c createAuthTest) onExpectMethods() {
@@ -79,7 +83,55 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		mockStore.On("Commit").Return(returns...)
 	case "Rollback":
 		mockStore.On("Rollback").Return(returns...)
+	case "Ack":
+		mockStore.On("Ack").Return(returns...)
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
 	}
+}
+
+func TestCreateAuthValidMessage(t *testing.T) {
+	setUp()
+	msg := &proto.CreateAuthMessage{}
+	var tests []createAuthTest
+
+	forms := []createAuthTest{
+		{
+			ExpectMethods: map[method]returns{
+				"Insert": {&model.Auth{}, nil},
+				"Ack": {nil},
+				"Commit": {&gorm.DB{}},
+			},
+		}, {
+			ExpectMethods: map[method]returns{
+				"Insert": {&model.Auth{}, errors.New("user id duplicated error")},
+				"Rollback": {&gorm.DB{}},
+			},
+		}, {
+			ExpectMethods: map[method]returns{
+				"Insert": {&model.Auth{}, nil},
+				"Ack": {errors.New("some error occurs while acknowledge message")},
+				"Rollback": {&gorm.DB{}},
+			},
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(msg)
+		test.onExpectMethods()
+
+		header := make(map[string]string)
+		header["XRequestId"] = test.XRequestId
+		header["MessageId"] = random.GenerateString(32)
+		header["Env"] = "Test"
+
+		body, _ := json.Marshal(msg)
+		_ = h.CreateAuth(NewCustomEvent(mockStore, header, body))
+	}
+
+	mockStore.AssertExpectations(t)
 }
