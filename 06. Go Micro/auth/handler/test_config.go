@@ -12,7 +12,6 @@ import (
 var mockStore mock.Mock
 var ctx context.Context
 var h *auth
-var id uint
 
 const (
 	None = "none"
@@ -35,5 +34,4 @@ func init() {
 
 func setUpEnv() () {
 	mockStore = mock.Mock{}
-	id = 0
 }
