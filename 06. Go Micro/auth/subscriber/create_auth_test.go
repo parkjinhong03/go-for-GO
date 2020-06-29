@@ -79,11 +79,15 @@ func (c createAuthTest) onExpectMethods() {
 
 func (c createAuthTest) onMethod(method method, returns returns) {
 	switch method {
-	case "Insert":
-		mockStore.On("Insert", &model.Auth{
+	case "InsertAuth":
+		mockStore.On("InsertAuth", &model.Auth{
 			UserId: c.UserId,
 			UserPw: c.UserPw,
 			Status: user.CreatePending,
+		}).Return(returns...)
+	case "InsertMessage":
+		mockStore.On("InsertMessage",&model.ProcessedMessage{
+			MsgId: c.MessageId,
 		}).Return(returns...)
 	case "Commit":
 		mockStore.On("Commit").Return(returns...)
@@ -114,20 +118,23 @@ func TestCreateAuthValidMessage(t *testing.T) {
 	forms := []createAuthTest{
 		{
 			ExpectMethods: map[method]returns{
-				"Insert": {&model.Auth{}, nil},
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"InsertAuth": {&model.Auth{}, nil},
 				"Ack":    {nil},
 				"Commit": {&gorm.DB{}},
 			},
 			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
-				"Insert":   {&model.Auth{}, errors.New("user id duplicated error")},
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"InsertAuth":   {&model.Auth{}, errors.New("user id duplicated error")},
 				"Rollback": {&gorm.DB{}},
 			},
 			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
-				"Insert":   {&model.Auth{}, nil},
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"InsertAuth":   {&model.Auth{}, nil},
 				"Ack":      {errors.New("some error occurs while acknowledge message")},
 				"Rollback": {&gorm.DB{}},
 			},
@@ -179,6 +186,41 @@ func TestCreateAuthUnmarshalErrorMessage(t *testing.T) {
 		event.setMessage(header, body)
 
 		err := h.CreateAuth(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestCreateAuthDuplicatedMessage(t *testing.T) {
+	setUp()
+	msg := &proto.CreateAuthMessage{}
+	var tests []createAuthTest
+
+	forms := []createAuthTest{
+		{
+			ExpectMethods: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, user.MsgIdDuplicateError},
+			},
+			ExpectError: ErrorDuplicatedMessage,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, err := json.Marshal(msg)
+		if err != nil { log.Fatal(err) }
+		event.setMessage(header, body)
+
+		err = h.CreateAuth(event)
 		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
 
 		mockStore.AssertExpectations(t)
