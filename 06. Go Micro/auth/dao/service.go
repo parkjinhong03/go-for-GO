@@ -21,15 +21,16 @@ func NewAuthDAOCreator(db *gorm.DB) (adc *AuthDAOCreator) {
 	if !db.HasTable(&model.Auth{}) {
 		db.CreateTable(&model.Auth{})
 	}
-	db.AutoMigrate(&model.Auth{})
+	db.AutoMigrate(&model.Auth{}, &model.ProcessedMessage{})
 	return
 }
 
 type AuthDAOService interface {
-	Insert(*model.Auth) (result *model.Auth, err error)
+	InsertAuth(*model.Auth) (result *model.Auth, err error)
 	CheckIfUserIdExist(id string) (exist bool, err error)
 	Commit() *gorm.DB
 	Rollback() *gorm.DB
+	InsertMessage(*model.ProcessedMessage) (result *model.ProcessedMessage, err error)
 }
 
 func (dc *AuthDAOCreator) GetDefaultAuthDAO() AuthDAOService {
