@@ -18,7 +18,7 @@ func NewDefaultDAO(db *gorm.DB) *defaultDAO {
 	}
 }
 
-func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
+func (d *defaultDAO) InsertAuth(u *model.Auth) (result *model.Auth, err error) {
 	if u.UserPw, err = hash.BcryptGenerate(u.UserPw, bcrypt.DefaultCost); err != nil {
 		err = BcryptGenerateError
 		return
@@ -33,6 +33,24 @@ func (d *defaultDAO) Insert(u *model.Auth) (result *model.Auth, err error) {
 	switch code {
 	case IdDuplicateErrorCode:
 		err = IdDuplicateError
+	case DataTooLongErrorCode:
+		err = DataLengthOverError
+	default:
+		err = r.Error
+	}
+	return
+}
+
+func (d *defaultDAO) InsertMessage(m *model.ProcessedMessage) (result *model.ProcessedMessage, err error) {
+	r := d.db.Create(m)
+	if r.Error == nil { result = r.Value.(*model.ProcessedMessage); return }
+
+	code, err := parser.DBErrorParse(r.Error.Error())
+	if err != nil { err = parser.InvalidError; return }
+
+	switch code {
+	case MsgIdDuplicateErrorCode:
+		err = MsgIdDuplicateError
 	case DataTooLongErrorCode:
 		err = DataLengthOverError
 	default:

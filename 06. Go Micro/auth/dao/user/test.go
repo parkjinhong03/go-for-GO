@@ -16,9 +16,14 @@ func NewTestDAO(mock *mock.Mock) *testDAO {
 	}
 }
 
-func (td *testDAO) Insert(auth *model.Auth) (*model.Auth, error) {
+func (td *testDAO) InsertAuth(auth *model.Auth) (*model.Auth, error) {
 	args := td.mock.Called(auth)
 	return args.Get(0).(*model.Auth), args.Error(1)
+}
+
+func (td *testDAO) InsertMessage(msg *model.ProcessedMessage) (*model.ProcessedMessage, error) {
+	args := td.mock.Called(msg)
+	return args.Get(0).(*model.ProcessedMessage), args.Error(1)
 }
 
 func (td *testDAO) CheckIfUserIdExist(id string) (bool, error) {
