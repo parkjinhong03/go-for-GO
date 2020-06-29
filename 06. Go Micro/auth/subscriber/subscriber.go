@@ -17,12 +17,14 @@ var (
 )
 
 type auth struct {
+	mq		 broker.Broker
 	adc      *dao.AuthDAOCreator
 	validate *validator.Validate
 }
 
-func NewAuth(adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
+func NewAuth(mq broker.Broker, adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
 	return &auth{
+		mq:       mq,
 		adc:      adc,
 		validate: validate,
 	}
@@ -30,7 +32,7 @@ func NewAuth(adc *dao.AuthDAOCreator, validate *validator.Validate) *auth {
 
 func (m *auth) CreateAuth(e broker.Event) error {
 	header := e.Message().Header
-	if header["XRequestId"] == "" || header["MessageId"] == "" {
+	if header["XRequestId"] == "" || header["MessageId"] == "" || len(header["MessageId"]) != 32 {
 		return ErrorBadRequest
 	}
 
