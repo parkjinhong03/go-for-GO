@@ -9,5 +9,6 @@ const (
 
 const (
 	IdDuplicateErrorCode = 1062
+	MsgIdDuplicateErrorCode = 1062
 	DataTooLongErrorCode = 1406
 )
