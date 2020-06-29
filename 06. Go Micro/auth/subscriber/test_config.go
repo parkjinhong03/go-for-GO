@@ -1,6 +1,7 @@
 package subscriber
 
 import (
+	br "auth/adapter/broker"
 	"auth/dao"
 	"auth/tool/validator"
 	"github.com/micro/go-micro/v2/broker"
@@ -29,5 +30,6 @@ func init() {
 	adc := dao.NewAuthDAOCreator(nil)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
-	h = NewAuth(adc, validate)
+	rbMQ := br.NewRabbitMQForTest(&mockStore)
+	h = NewAuth(rbMQ, adc, validate)
 }
