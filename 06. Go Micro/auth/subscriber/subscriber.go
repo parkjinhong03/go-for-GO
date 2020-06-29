@@ -13,6 +13,7 @@ import (
 
 var (
 	ErrorBadRequest = errors.New("bad request")
+	ErrorDuplicatedMessage = errors.New("massage duplicated")
 )
 
 type auth struct {
@@ -44,8 +45,6 @@ func (m *auth) CreateAuth(e broker.Event) error {
 		return ErrorBadRequest
 	}
 
-	// 중복 메시지 처리 로직 추가
-
 	var ad dao.AuthDAOService
 	env, ok := e.Message().Header["Env"]
 	if ok && env == "Test" {
@@ -54,8 +53,14 @@ func (m *auth) CreateAuth(e broker.Event) error {
 		ad = m.adc.GetDefaultAuthDAO()
 	}
 
+	if _, err := ad.InsertMessage(&model.ProcessedMessage{
+		MsgId: header["MessageId"],
+	}); err != nil {
+		return ErrorDuplicatedMessage
+	}
+
 	var _ *model.Auth
-	if _, err := ad.Insert(&model.Auth{
+	if _, err := ad.InsertAuth(&model.Auth{
 		UserId: body.UserId,
 		UserPw: body.UserPw,
 		Status: user.CreatePending,
