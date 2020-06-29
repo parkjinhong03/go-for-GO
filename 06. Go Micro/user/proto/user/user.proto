@@ -3,35 +3,25 @@ syntax = "proto3";
 package examples.blog.service.user;
 
 service User {
-	rpc Call(Request) returns (Response) {}
-	rpc Stream(StreamingRequest) returns (stream StreamingResponse) {}
-	rpc PingPong(stream Ping) returns (stream Pong) {}
+    rpc EmailDuplicated(EmailDuplicatedRequest) returns (EmailDuplicatedResponse) {}
 }
 
-message Message {
-	string say = 1;
+message EmailDuplicatedRequest {
+	string email = 1;
+    string authorization = 2;
+    string XRequestId = 3;
 }
 
-message Request {
-	string name = 1;
+message EmailDuplicatedResponse {
+    uint32 status = 1;
+    string message = 2;
+    string authorization = 3;
 }
 
-message Response {
-	string msg = 1;
-}
-
-message StreamingRequest {
-	int64 count = 1;
-}
-
-message StreamingResponse {
-	int64 count = 1;
-}
-
-message Ping {
-	int64 stroke = 1;
-}
-
-message Pong {
-	int64 stroke = 1;
+message CreateUserMessage {
+    uint32 id = 1;
+	string name = 2;
+	string phone_number = 3;
+	string email = 4;
+	string introduction = 5;
 }
