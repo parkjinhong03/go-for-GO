@@ -71,14 +71,9 @@ func (m *auth) CreateAuth(e broker.Event) error {
 		// 에러 기록
 		return nil
 	}
-
-	if err := e.Ack(); err != nil {
-		ad.Rollback()
-		// 에러 기록
-		return nil
-	}
+	ad.Commit()
 	// 정상 처리 기록
 
-	ad.Commit()
+	_ = e.Ack()
 	return nil
 }
