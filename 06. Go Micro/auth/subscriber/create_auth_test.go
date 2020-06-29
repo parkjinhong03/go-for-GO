@@ -119,24 +119,24 @@ func TestCreateAuthValidMessage(t *testing.T) {
 		{
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
-				"InsertAuth": {&model.Auth{}, nil},
-				"Ack":    {nil},
-				"Commit": {&gorm.DB{}},
+				"InsertAuth":    {&model.Auth{}, nil},
+				"Commit":        {&gorm.DB{}},
+				"Ack":           {nil},
 			},
 			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
-				"InsertAuth":   {&model.Auth{}, errors.New("user id duplicated error")},
-				"Rollback": {&gorm.DB{}},
+				"InsertAuth":    {&model.Auth{}, errors.New("user id duplicated error")},
+				"Rollback":      {&gorm.DB{}},
 			},
 			ExpectError: nil,
 		}, {
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
-				"InsertAuth":   {&model.Auth{}, nil},
-				"Ack":      {errors.New("some error occurs while acknowledge message")},
-				"Rollback": {&gorm.DB{}},
+				"InsertAuth":    {&model.Auth{}, nil},
+				"Commit":        {&gorm.DB{}},
+				"Ack":           {errors.New("some error occurs while acknowledge message")},
 			},
 			ExpectError: nil,
 		},
@@ -262,6 +262,8 @@ func TestCreateAuthInValidMessage(t *testing.T) {
 			Email: "itIsNotEmailFormat",
 		}, {
 			Email: "itIsSoVeryTooLongEmail@naver.com",
+		}, {
+			MessageId: "LengthOfThisMessageIdIsNotThirtyTwo",
 		},
 	}
 
