@@ -1,31 +1,46 @@
 package main
 
 import (
-	log "github.com/micro/go-micro/v2/logger"
 	"github.com/micro/go-micro/v2"
+	log "github.com/micro/go-micro/v2/logger"
+	"user/adapter/broker"
+	"user/adapter/db"
+	"user/dao"
 	"user/handler"
 	"user/subscriber"
-
-	user "user/proto/user"
+	"user/tool/validator"
 )
 
 func main() {
-	// New Service
+	conn, err := db.ConnMysql()
+	if err != nil { log.Fatal(err) }
+	udc := dao.NewUserDAOCreator(conn)
+	validate, err := validator.New()
+	if err != nil { log.Fatal(err) }
+	rbMQ := broker.ConnRabbitMQ()
+
+	h := handler.NewUser(rbMQ, validate, udc)
+	s := subscriber.NewUser()
+
 	service := micro.NewService(
 		micro.Name("examples.blog.service.user"),
 		micro.Version("latest"),
+		micro.Broker(rbMQ),
 	)
 
-	// Initialise service
-	service.Init()
+	brkHandler := func() error {
+		brk := service.Options().Broker
+		if err := brk.Connect(); err != nil { log.Fatal(err) }
+		if _, err := brk.Subscribe(subscriber.CreateUserEventTopic); err != nil { log.Fatal(err) }
+		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
+		return nil
+	}
 
-	// Register Handler
-	user.RegisterUserHandler(service.Server(), new(handler.User))
+	service.Init(micro.AfterStart(brkHandler))
 
-	// Register Struct as Subscriber
-	micro.RegisterSubscriber("examples.blog.service.user", service.Server(), new(subscriber.User))
-
-	// Run service
+	if err = micro.RegisterHandler(service.Server(), h); err != nil {
+		log.Fatal(err)
+	}
 	if err := service.Run(); err != nil {
 		log.Fatal(err)
 	}
