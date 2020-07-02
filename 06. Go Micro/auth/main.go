@@ -5,7 +5,7 @@ import (
 	"auth/adapter/db"
 	"auth/dao"
 	"auth/handler"
-	auth "auth/proto/auth"
+	proto "auth/proto/auth"
 	"auth/subscriber"
 	"auth/tool/validator"
 	"github.com/micro/go-micro/v2"
@@ -58,7 +58,7 @@ func main() {
 	)
 
 	// 핸들러 등록 및 서비스 실행
- 	if err := auth.RegisterAuthHandler(service.Server(), h); err != nil {
+ 	if err := proto.RegisterAuthHandler(service.Server(), h); err != nil {
  		log.Fatal(err)
 	}
 	if err := service.Run(); err != nil {
