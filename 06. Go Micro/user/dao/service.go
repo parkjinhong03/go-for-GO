@@ -24,6 +24,8 @@ func NewUserDAOCreator(db *gorm.DB) (udc *UserDAOCreator) {
 		db: db,
 	}
 
+	if db == nil { return }
+
 	if !db.HasTable(&model.User{}) {
 		db.CreateTable(&model.User{})
 	}
