@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"github.com/stretchr/testify/mock"
-	"log"
 	"net/http"
 	"time"
 	"user/dao"
@@ -13,14 +12,14 @@ import (
 
 func (u *user) EmailDuplicated(ctx context.Context, req *proto.EmailDuplicatedRequest, rsp *proto.EmailDuplicatedResponse) (_ error) {
 	if err := u.validate.Struct(req); err != nil {
-		rsp.SetStatusAndMsg(http.StatusBadRequest, err.Error())
+		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return
 	}
 
 	var userId string
 	if req.Authorization != "" {
 		claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
-		if err != nil { log.Fatal(err) }
+		if err != nil { rsp.SetStatus(http.StatusForbidden); return }
 		userId = claim.UserId
 	}
 
