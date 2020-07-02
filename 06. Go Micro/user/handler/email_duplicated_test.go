@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -105,129 +106,126 @@ func TestEmailDuplicatedStatusOK(t *testing.T) {
 	}
 }
 
-//func TestEmailDuplicatedDuplicateError(t *testing.T) {
-//	setUpEnv()
-//	req := &proto.EmailDuplicatedRequest{}
-//	resp := &proto.EmailDuplicatedResponse{}
-//	var tests []emailDuplicatedTest
-//
-//	forms := []emailDuplicatedTest{
-//		{
-//			Email: "jinhong0719@naver.com",
-//			ExpectMethods: map[method]returns{
-//				"CheckIfEmailExist": {true, nil},
-//			},
-//			ExpectCode: StatusUserIdDuplicate,
-//			ExpectMessage: MessageUserIdDuplicate,
-//		}, {
-//			UserId: "TestId1",
-//			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("TestId1", "jinhong0719@naver.com", time.Hour),
-//			ExpectMethods: map[method]returns{
-//				"CheckIfEmailExist": {true, nil},
-//			},
-//			ExpectCode: StatusUserIdDuplicate,
-//			ExpectMessage: MessageUserIdDuplicate,
-//		},
-//	}
-//
-//	for _, form := range forms {
-//		tests = append(tests, form.createTestFromForm())
-//	}
-//
-//	for _, test := range tests {
-//		test.setRequestContext(req)
-//		test.onExpectMethods()
-//		_ = h.UserIdDuplicated(ctx, req, resp)
-//		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
-//		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
-//	}
-//}
-//
-//func TestEmailDuplicatedForbidden(t *testing.T) {
-//	setUpEnv()
-//	req := &proto.EmailDuplicatedRequest{}
-//	resp := &proto.EmailDuplicatedResponse{}
-//	var tests []emailDuplicatedTest
-//
-//	forms := []emailDuplicatedTest{
-//		{
-//			UserId:        "TestId1",
-//			Authorization: "ThisIsInvalidAuthorizationString",
-//			ExpectCode:    http.StatusForbidden,
-//		},
-//	}
-//
-//	for _, form := range forms {
-//		tests = append(tests, form.createTestFromForm())
-//	}
-//
-//	for _, test := range tests {
-//		test.setRequestContext(req)
-//		test.onExpectMethods()
-//		_ = h.UserIdDuplicated(ctx, req, resp)
-//		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
-//	}
-//}
-//
-//func TestEmailDuplicatedBadRequest(t *testing.T) {
-//	setUpEnv()
-//	req := &proto.EmailDuplicatedRequest{}
-//	resp := &proto.EmailDuplicatedResponse{}
-//	var tests []emailDuplicatedTest
-//
-//	forms := []emailDuplicatedTest{
-//		{
-//			UserId: None,
-//		}, {
-//			XRequestId: None,
-//		}, {
-//			UserId: "400",
-//		}, {
-//			UserId: "thisUserIdIsTooLongMaybe400?",
-//		},
-//	}
-//
-//	for _, form := range forms {
-//		form.ExpectCode = http.StatusBadRequest
-//		form.ExpectMessage = MessageBadRequest
-//		tests = append(tests, form.createTestFromForm())
-//	}
-//
-//	for _, test := range tests {
-//		test.setRequestContext(req)
-//		test.onExpectMethods()
-//		_ = h.UserIdDuplicated(ctx, req, resp)
-//		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
-//		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
-//	}
-//}
-//
-//func TestEmailDuplicatedServerError(t *testing.T) {
-//	setUpEnv()
-//	req := &proto.EmailDuplicatedRequest{}
-//	resp := &proto.EmailDuplicatedResponse{}
-//	var tests []emailDuplicatedTest
-//
-//	forms := []emailDuplicatedTest{
-//		{
-//			UserId: "TestId1",
-//			ExpectMethods: map[method]returns{
-//				"CheckIfEmailExist": {true, errors.New("")},
-//			},
-//			ExpectCode: http.StatusInternalServerError,
-//		},
-//	}
-//
-//	for _, form := range forms {
-//		form.ExpectCode = http.StatusInternalServerError
-//		form.ExpectMessage = MessageBadRequest
-//		tests = append(tests, form.createTestFromForm())
-//	}
-//
-//	for _, test := range tests {
-//		test.setRequestContext(req)
-//		test.onExpectMethods()
-//		_ = h.UserIdDuplicated(ctx, req, resp)
-//		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
-//	}
-//}
+func TestEmailDuplicatedDuplicateError(t *testing.T) {
+	setUpEnv()
+	req := &proto.EmailDuplicatedRequest{}
+	resp := &proto.EmailDuplicatedResponse{}
+	var tests []emailDuplicatedTest
+
+	forms := []emailDuplicatedTest{
+		{
+			ExpectMethods: map[method]returns{
+				"CheckIfEmailExist": {true, nil},
+			},
+			ExpectCode: StatusEmailDuplicated,
+			ExpectMessage: MessageEmailDuplicated,
+		}, {
+			Authorization: jwt.GenerateDuplicateCertJWTNoReturnErr("TestId1", "jinhong0719@naver.com", time.Hour),
+			ExpectMethods: map[method]returns{
+				"CheckIfEmailExist": {true, nil},
+			},
+			ExpectCode: StatusEmailDuplicated,
+			ExpectMessage: MessageEmailDuplicated,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.EmailDuplicated(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
+	}
+}
+
+func TestEmailDuplicatedForbidden(t *testing.T) {
+	setUpEnv()
+	req := &proto.EmailDuplicatedRequest{}
+	resp := &proto.EmailDuplicatedResponse{}
+	var tests []emailDuplicatedTest
+
+	forms := []emailDuplicatedTest{
+		{
+			Email:         "jinhong0719@naver.com",
+			Authorization: "ThisIsInvalidAuthorizationString",
+			ExpectCode:    http.StatusForbidden,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.EmailDuplicated(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+	}
+}
+
+func TestEmailDuplicatedBadRequest(t *testing.T) {
+	setUpEnv()
+	req := &proto.EmailDuplicatedRequest{}
+	resp := &proto.EmailDuplicatedResponse{}
+	var tests []emailDuplicatedTest
+
+	forms := []emailDuplicatedTest{
+		{
+			Email: none,
+		}, {
+			XRequestId: none,
+		}, {
+			Email: "thisEmailIsTooLongMaybe400?@naver.com",
+		}, {
+			Email: "thisEmailIsInvalid",
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectCode = http.StatusBadRequest
+		form.ExpectMessage = MessageBadRequest
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.EmailDuplicated(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
+	}
+}
+
+func TestEmailDuplicatedServerError(t *testing.T) {
+	setUpEnv()
+	req := &proto.EmailDuplicatedRequest{}
+	resp := &proto.EmailDuplicatedResponse{}
+	var tests []emailDuplicatedTest
+
+	forms := []emailDuplicatedTest{
+		{
+			ExpectMethods: map[method]returns{
+				"CheckIfEmailExist": {true, errors.New("some db error")},
+			},
+			ExpectCode: http.StatusInternalServerError,
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectCode = http.StatusInternalServerError
+		form.ExpectMessage = MessageBadRequest
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		test.setRequestContext(req)
+		test.onExpectMethods()
+		_ = h.EmailDuplicated(ctx, req, resp)
+		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+	}
+}
