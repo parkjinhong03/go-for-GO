@@ -98,6 +98,15 @@ type EmailDuplicatedResponse struct {
 	Authorization string `protobuf:"bytes,3,opt,name=authorization,proto3" json:"authorization,omitempty"`
 }
 
+func (x *EmailDuplicatedResponse) SetStatus(status int) {
+	x.Status = uint32(status)
+}
+
+func (x *EmailDuplicatedResponse) SetStatusAndMsg(status int, msg string) {
+	x.Status = uint32(status)
+	x.Message = msg
+}
+
 func (x *EmailDuplicatedResponse) Reset() {
 	*x = EmailDuplicatedResponse{}
 	if protoimpl.UnsafeEnabled {
