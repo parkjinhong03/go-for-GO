@@ -30,9 +30,9 @@ type EmailDuplicatedRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Email         string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty" validate:"required,email,maxLength=30"`
 	Authorization string `protobuf:"bytes,2,opt,name=authorization,proto3" json:"authorization,omitempty"`
-	XRequestId    string `protobuf:"bytes,3,opt,name=XRequestId,proto3" json:"XRequestId,omitempty"`
+	XRequestId    string `protobuf:"bytes,3,opt,name=XRequestId,proto3" json:"XRequestId,omitempty" validate:"required"`
 }
 
 func (x *EmailDuplicatedRequest) Reset() {
