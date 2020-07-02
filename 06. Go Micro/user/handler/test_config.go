@@ -1,6 +1,13 @@
 package handler
 
-import "github.com/stretchr/testify/mock"
+import (
+	"context"
+	"github.com/stretchr/testify/mock"
+	"log"
+	"user/dao"
+	proto "user/proto/user"
+	"user/tool/validator"
+)
 
 type method string
 type returns []interface{}
@@ -12,8 +19,21 @@ const (
 
 var (
 	mockStore = mock.Mock{}
+	h proto.UserHandler
+	ctx context.Context
 )
 
 func init() {
+	ctx = context.WithValue(context.Background(), "env", "test")
+	ctx = context.WithValue(ctx, "mockStore", &mockStore)
+	mockStore = mock.Mock{}
+	validate, err := validator.New()
+	if err != nil { log.Fatal(err) }
+	udc := dao.NewUserDAOCreator(nil)
+	// mq mock 객체 대입 필요
+	h = NewUser(nil, validate, udc)
+}
+
+func setUpEnv() {
 	mockStore = mock.Mock{}
 }
