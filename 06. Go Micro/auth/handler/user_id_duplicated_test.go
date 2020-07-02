@@ -4,9 +4,9 @@ import (
 	proto "auth/proto/auth"
 	"auth/tool/jwt"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -49,7 +49,7 @@ func (c userIdDuplicatedTest) onMethod(method method, returns returns) {
 	case "CheckIfUserIdExist":
 		mockStore.On("CheckIfUserIdExist", c.UserId).Return(returns...)
 	default:
-		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
+		log.Fatalf("%s method cannot be on booked\n", method)
 	}
 	return
 }
