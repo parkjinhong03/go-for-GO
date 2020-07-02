@@ -2,11 +2,14 @@ package main
 
 import (
 	"github.com/micro/go-micro/v2"
+	"github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
-	"user/adapter/broker"
+	"github.com/micro/go-plugins/broker/rabbitmq/v2"
+	br "user/adapter/broker"
 	"user/adapter/db"
 	"user/dao"
 	"user/handler"
+	proto "user/proto/user"
 	"user/subscriber"
 	"user/tool/validator"
 )
@@ -17,7 +20,7 @@ func main() {
 	udc := dao.NewUserDAOCreator(conn)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
-	rbMQ := broker.ConnRabbitMQ()
+	rbMQ := br.ConnRabbitMQ()
 
 	h := handler.NewUser(rbMQ, validate, udc)
 	s := subscriber.NewUser()
@@ -31,14 +34,15 @@ func main() {
 	brkHandler := func() error {
 		brk := service.Options().Broker
 		if err := brk.Connect(); err != nil { log.Fatal(err) }
-		if _, err := brk.Subscribe(subscriber.CreateUserEventTopic); err != nil { log.Fatal(err) }
+		options := []broker.SubscribeOption{broker.Queue(subscriber.CreateUserEventTopic), broker.DisableAutoAck(), rabbitmq.DurableQueue()}
+		if _, err := brk.Subscribe(subscriber.CreateUserEventTopic, s.CreateUser, options...); err != nil { log.Fatal(err) }
 		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
 		return nil
 	}
 
 	service.Init(micro.AfterStart(brkHandler))
 
-	if err = micro.RegisterHandler(service.Server(), h); err != nil {
+	if err = proto.RegisterUserHandler(service.Server(), h); err != nil {
 		log.Fatal(err)
 	}
 	if err := service.Run(); err != nil {
