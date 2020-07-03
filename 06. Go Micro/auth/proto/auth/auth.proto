@@ -9,8 +9,6 @@ service Auth {
 
 message UserIdDuplicatedRequest {
     string user_id = 1;
-    string authorization = 2;
-    string XRequestID = 3;
 }
 
 message UserIdDuplicatedResponse {
@@ -26,8 +24,6 @@ message BeforeCreateAuthRequest {
     string phone_number = 4;
     string email = 5;
     string introduction = 6;
-    string authorization = 7;
-    string XRequestID = 8;
 }
 
 message BeforeCreateAuthResponse {
