@@ -12,7 +12,7 @@ func GenerateDuplicateCertJWT(userId, email string, d time.Duration) (ss string,
 	priv, err := ioutil.ReadFile("/Users/parkjinhong/Desktop/go-for-GO/06. Go Micro/auth/tool/jwt/jwt_key.priv")
 	if err != nil { return }
 
-	claims := duplicateCertClaim{
+	claims := DuplicateCertClaim{
 		UserId: userId,
 		Email:  email,
 		StandardClaims: jwt.StandardClaims{
@@ -31,7 +31,7 @@ func GenerateDuplicateCertJWTNoReturnErr(userId, email string, d time.Duration) 
 		log.Fatal(err)
 	}
 
-	claims := duplicateCertClaim{
+	claims := DuplicateCertClaim{
 		UserId: userId,
 		Email:  email,
 		StandardClaims: jwt.StandardClaims{
@@ -47,17 +47,19 @@ func GenerateDuplicateCertJWTNoReturnErr(userId, email string, d time.Duration) 
 	return
 }
 
-func ParseDuplicateCertClaimFromJWT(ss string) (*duplicateCertClaim, error) {
-	token, err := jwt.ParseWithClaims(ss, &duplicateCertClaim{}, func(t *jwt.Token) (i interface{}, e error) {
+func ParseDuplicateCertClaimFromJWT(ss string) (claim *DuplicateCertClaim, err error) {
+	var token *jwt.Token
+	if token, err = jwt.ParseWithClaims(ss, &DuplicateCertClaim{}, func(t *jwt.Token) (i interface{}, e error) {
 		return ioutil.ReadFile("/Users/parkjinhong/Desktop/go-for-GO/06. Go Micro/auth/tool/jwt/jwt_key.priv")
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return
 	}
 
-	if claim, ok := token.Claims.(*duplicateCertClaim); ok && token.Valid {
-		return claim, nil
+	var ok bool
+	if claim, ok = token.Claims.(*DuplicateCertClaim); ok && token.Valid {
+		return
 	}
 
-	return nil, errors.New("unable to parse duplicate certificate claim from JWT")
+	err = errors.New("unable to parse duplicate certificate claim from JWT")
+	return
 }
