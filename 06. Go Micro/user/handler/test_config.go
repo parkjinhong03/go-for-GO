@@ -35,5 +35,7 @@ func init() {
 }
 
 func setUpEnv() {
+	ctx = context.WithValue(context.Background(), "env", "test")
+	ctx = context.WithValue(ctx, "mockStore", &mockStore)
 	mockStore = mock.Mock{}
 }
