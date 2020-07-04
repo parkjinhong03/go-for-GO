@@ -103,8 +103,8 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 
 func (c createAuthTest) generateMsgHeader() (header map[string]string) {
 	header = make(map[string]string)
-	header["XRequestId"] = c.XRequestId
-	header["MessageId"] = c.MessageId
+	header["XRequestID"] = c.XRequestId
+	header["MessageID"] = c.MessageId
 	header["Env"] = "Test"
 
 	return
@@ -201,7 +201,7 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, user.MsgIdDuplicateError},
 			},
-			ExpectError: ErrorDuplicatedMessage,
+			ExpectError: ErrorDuplicated,
 		},
 	}
 
@@ -227,7 +227,44 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 	}
 }
 
-func TestCreateAuthInValidMessage(t *testing.T) {
+func TestCreateAuthForbiddenMessage(t *testing.T) {
+	setUp()
+	msg := &proto.CreateAuthMessage{}
+	var tests []createAuthTest
+
+	forms := []createAuthTest{
+		{
+			XRequestId: none,
+		}, {
+			XRequestId: "ThisIsInvalidXRequestIDString",
+		}, {
+			MessageId: none,
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectError = ErrorForbidden
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, _ := json.Marshal(msg)
+		event.setMessage(header, body)
+
+		err := h.CreateAuth(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestCreateAuthBadRequestMessage(t *testing.T) {
 	setUp()
 	msg := &proto.CreateAuthMessage{}
 	var tests []createAuthTest
@@ -237,13 +274,6 @@ func TestCreateAuthInValidMessage(t *testing.T) {
 			UserId: none,
 		}, {
 			UserPw: none,
-		}, {
-			UserId: none,
-			UserPw: none,
-		}, {
-			XRequestId: none,
-		}, {
-			MessageId: none,
 		}, {
 			UserPw: "qwe",
 		}, {
@@ -262,8 +292,6 @@ func TestCreateAuthInValidMessage(t *testing.T) {
 			Email: "itIsNotEmailFormat",
 		}, {
 			Email: "itIsSoVeryTooLongEmail@naver.com",
-		}, {
-			MessageId: "LengthOfThisMessageIdIsNotThirtyTwo",
 		},
 	}
 
