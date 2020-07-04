@@ -5,6 +5,8 @@ import (
 	proto "auth/proto/auth"
 	"auth/tool/jwt"
 	"context"
+	"github.com/google/uuid"
+	"github.com/micro/go-micro/v2/metadata"
 	"github.com/stretchr/testify/mock"
 	"net/http"
 	"time"
@@ -16,9 +18,27 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *proto.UserIdDuplicated
 		return
 	}
 
+	var md metadata.Metadata
+	var ok bool
+	if md, ok = metadata.FromContext(ctx); !ok || md == nil {
+		rsp.SetStatus(http.StatusForbidden)
+		return
+	}
+
+	var xId string
+	if xId, ok = md.Get("XRequestID"); !ok || xId == "" {
+		rsp.SetStatus(http.StatusForbidden)
+		return
+	}
+
+	if _, err := uuid.Parse(xId); err != nil {
+		rsp.SetStatus(http.StatusForbidden)
+		return
+	}
+
 	var email string
-	if req.Authorization != "" {
-		claim, err := jwt.ParseDuplicateCertClaimFromJWT(req.Authorization)
+	if ss, ok := md.Get("Authorization"); ok && ss != "" {
+		claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
 		if err != nil { rsp.SetStatus(http.StatusForbidden); return }
 		email = claim.Email
 	}
