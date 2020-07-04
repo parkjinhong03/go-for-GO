@@ -10,5 +10,5 @@ const (
 )
 
 const (
-	MessageBadRequest = "bad request"
+	MessageBadRequest = "the request is invalid. please check the document"
 )
