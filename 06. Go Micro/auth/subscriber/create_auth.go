@@ -6,13 +6,21 @@ import (
 	"auth/model"
 	proto "auth/proto/auth"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
 )
 
 func (m *auth) CreateAuth(e broker.Event) error {
 	header := e.Message().Header
-	if header["XRequestId"] == "" || header["MessageId"] == "" || len(header["MessageId"]) != 32 {
-		return ErrorBadRequest
+	msgId := header["MessageID"]
+	xReqId := header["XRequestID"]
+
+	if xReqId == "" || msgId == "" {
+		return ErrorForbidden
+	}
+
+	if _, err := uuid.Parse(xReqId); err != nil {
+		return ErrorForbidden
 	}
 
 	body := proto.CreateAuthMessage{}
@@ -35,9 +43,9 @@ func (m *auth) CreateAuth(e broker.Event) error {
 	}
 
 	if _, err := ad.InsertMessage(&model.ProcessedMessage{
-		MsgId: header["MessageId"],
+		MsgId: msgId,
 	}); err != nil {
-		return ErrorDuplicatedMessage
+		return ErrorDuplicated
 	}
 
 	var _ *model.Auth
