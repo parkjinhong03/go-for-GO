@@ -32,6 +32,8 @@ func init() {
 	h = NewAuth(b, adc, validate)
 }
 
-func setUpEnv() () {
+func setUpEnv() {
+	ctx = context.WithValue(context.Background(), "env", "test")
+	ctx = context.WithValue(ctx, "mockStore", &mockStore)
 	mockStore = mock.Mock{}
 }
