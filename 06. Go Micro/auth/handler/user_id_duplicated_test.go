@@ -5,6 +5,7 @@ import (
 	"auth/tool/jwt"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/micro/go-micro/v2/metadata"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
@@ -34,8 +35,8 @@ func (c userIdDuplicatedTest) createTestFromForm() (test userIdDuplicatedTest) {
 
 func (c userIdDuplicatedTest) setRequestContext(req *proto.UserIdDuplicatedRequest) {
 	req.UserId = c.UserId
-	req.Authorization = c.Authorization
-	req.XRequestID = c.XRequestId
+	ctx = metadata.Set(ctx, "XRequestID", c.XRequestId)
+	ctx = metadata.Set(ctx, "Authorization", c.Authorization)
 }
 
 func (c userIdDuplicatedTest) onExpectMethods() {
@@ -153,6 +154,14 @@ func TestUserIdDuplicatedForbidden(t *testing.T) {
 			UserId:        "TestId1",
 			Authorization: "ThisIsInvalidAuthorizationString",
 			ExpectCode:    http.StatusForbidden,
+		}, {
+			UserId:     "TestId2",
+			XRequestId: None,
+			ExpectCode: http.StatusForbidden,
+		}, {
+			UserId:     "TestId4",
+			XRequestId: "ThisIsInvalidXRequestIDString",
+			ExpectCode: http.StatusForbidden,
 		},
 	}
 
@@ -164,7 +173,7 @@ func TestUserIdDuplicatedForbidden(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.UserIdDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 	}
 }
 
@@ -177,8 +186,6 @@ func TestUserIdDuplicatedBadRequest(t *testing.T) {
 	forms := []userIdDuplicatedTest{
 		{
 			UserId: None,
-		}, {
-			XRequestId: None,
 		}, {
 			UserId: "400",
 		}, {
@@ -211,7 +218,7 @@ func TestUserIdDuplicatedServerError(t *testing.T) {
 		{
 			UserId: "TestId1",
 			ExpectMethods: map[method]returns{
-				"CheckIfUserIdExist": {true, errors.New("")},
+				"CheckIfUserIdExist": {true, errors.New("some error occurs while using db")},
 			},
 			ExpectCode: http.StatusInternalServerError,
 		},
