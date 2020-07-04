@@ -5,12 +5,12 @@ import (
 	"auth/subscriber"
 	"auth/tool/jwt"
 	"auth/tool/random"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
+	"github.com/micro/go-micro/v2/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"log"
@@ -31,6 +31,7 @@ type CreateAuthTest struct {
 	Introduction  string
 	Authorization string
 	XRequestId    string
+	MessageId     string
 	ExpectCode    uint32
 	ExpectMessage string
 	ExpectMethods map[method]returns
@@ -46,6 +47,7 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	if c.Introduction == None	{ test.Introduction = "" } 	else if c.Introduction == ""  { test.Introduction = "" }
 	if c.Email == None 			{ test.Email = "" } 		else if c.Email == "" 		  { test.Email = DefaultEmail }
 	if c.XRequestId == None 	{ test.XRequestId = "" }	else if c.XRequestId == ""	  { test.XRequestId = uuid.New().String() }
+	if c.MessageId == None      { test.MessageId = "" }     else if c.MessageId == ""     { test.MessageId = random.GenerateString(32) }
 	if c.Authorization == None  { test.Authorization = "" } else if c.Authorization == "" {
 		test.Authorization = jwt.GenerateDuplicateCertJWTNoReturnErr(test.UserId, test.Email, time.Hour)
 	}
@@ -59,8 +61,9 @@ func (c CreateAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
 	req.Email = c.Email
 	req.PhoneNumber = c.PhoneNumber
 	req.Introduction = c.Introduction
-	req.Authorization = c.Authorization
-	req.XRequestID = c.XRequestId
+	ctx = metadata.Set(ctx, "XRequestID", c.XRequestId)
+	ctx = metadata.Set(ctx, "Authorization", c.Authorization)
+	ctx = metadata.Set(ctx, "MessageID", c.MessageId)
 }
 
 func (c CreateAuthTest) onExpectMethods() {
@@ -74,9 +77,9 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 	case "Publish":
 		header := make(map[string]string)
 		header["XRequestId"] = c.XRequestId
-		header["MessageId"] = ctx.Value("MessageId").(string)
+		header["MessageId"]  = c.MessageId
 
-		body := proto.CreateAuthMessage{
+		msg := proto.CreateAuthMessage{
 			UserId:       c.UserId,
 			UserPw:       c.UserPw,
 			Name:         c.Name,
@@ -84,12 +87,12 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 			Email:        c.Email,
 			Introduction: c.Introduction,
 		}
-		b, err := json.Marshal(body)
+		body, err := json.Marshal(msg)
 		if err != nil { log.Fatal(err) }
 
 		mockStore.On("Publish", subscriber.CreateAuthEventTopic, &broker.Message{
 			Header: header,
-			Body:   b,
+			Body:   body,
 		}).Return(returns...)
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
@@ -131,12 +134,10 @@ func TestAuthCreateManySuccess(t *testing.T) {
 
 	for _, test := range tests {
 		mockStore = mock.Mock{}
-
-		ctx = context.WithValue(ctx, "MessageId", random.GenerateString(32))
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 
 		mockStore.AssertExpectations(t)
@@ -186,7 +187,7 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 
 		mockStore.AssertExpectations(t)
@@ -201,10 +202,30 @@ func TestBeforeCreateAuthForbidden(t *testing.T) {
 
 	var forms = []CreateAuthTest{
 		{
+			UserId:     "testId2",
+			Email:      "jinhong0719@naver.com",
+			XRequestId: None,
+			ExpectCode: http.StatusForbidden,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			XRequestId:    "ThisIsInvalidXRequestIDString",
+			ExpectCode:    http.StatusForbidden,
+		}, {
+			UserId:        "testId2",
+			Email:         "jinhong0719@naver.com",
+			Authorization: None,
+			ExpectCode:    http.StatusForbidden,
+		}, {
 			UserId:        "testId2",
 			Email:         "jinhong0719@naver.com",
 			Authorization: "ThisIsInvalidAuthorizationString",
 			ExpectCode:    http.StatusForbidden,
+		}, {
+			UserId:     "testId2",
+			Email:      "jinhong0719@naver.com",
+			MessageId:  None,
+			ExpectCode: http.StatusForbidden,
 		},
 	}
 
@@ -218,7 +239,7 @@ func TestBeforeCreateAuthForbidden(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assert error test case: %v\n", test)
 
 		mockStore.AssertExpectations(t)
 	}
@@ -238,10 +259,6 @@ func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 		}, {
 			UserId: None,
 			UserPw: None,
-		}, {
-			XRequestId: None,
-		}, {
-			Authorization: None,
 		}, {
 			UserPw: "qwe",
 		}, {
@@ -275,7 +292,7 @@ func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assert error test case: %v\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assert error test case: %v\n", test)
 
 		mockStore.AssertExpectations(t)
@@ -310,7 +327,7 @@ func TestBeforeCreateAuthServerError(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.BeforeCreateAuth(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assert error test case: %v\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assert error test case: %v\n", test)
 
 		mockStore.AssertExpectations(t)
 	}
