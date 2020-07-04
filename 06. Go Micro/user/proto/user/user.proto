@@ -8,8 +8,6 @@ service User {
 
 message EmailDuplicatedRequest {
 	string email = 1;
-    string authorization = 2;
-    string XRequestId = 3;
 }
 
 message EmailDuplicatedResponse {
