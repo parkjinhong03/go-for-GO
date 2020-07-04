@@ -2,14 +2,8 @@ package subscriber
 
 import (
 	"auth/dao"
-	"errors"
 	"github.com/go-playground/validator/v10"
 	"github.com/micro/go-micro/v2/broker"
-)
-
-var (
-	ErrorBadRequest = errors.New("bad request")
-	ErrorDuplicatedMessage = errors.New("massage duplicated")
 )
 
 type auth struct {
