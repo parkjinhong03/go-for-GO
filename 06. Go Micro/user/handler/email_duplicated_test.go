@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"github.com/google/uuid"
+	"github.com/micro/go-micro/v2/metadata"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
@@ -34,8 +35,8 @@ func (e emailDuplicatedTest) createTestFromForm() (test emailDuplicatedTest) {
 
 func (e emailDuplicatedTest) setRequestContext(req *proto.EmailDuplicatedRequest) {
 	req.Email = e.Email
-	req.Authorization = e.Authorization
-	req.XRequestId = e.XRequestId
+	ctx = metadata.Set(ctx, "XRequestID", e.XRequestId)
+	ctx = metadata.Set(ctx, "Authorization", e.Authorization)
 	return
 }
 
@@ -100,7 +101,7 @@ func TestEmailDuplicatedStatusOK(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.EmailDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
 		assert.Equalf(t, test.ExpectAuthorization, resp.Authorization, "authorization assertion error (test case: %v)\n", test)
 	}
@@ -137,7 +138,7 @@ func TestEmailDuplicatedDuplicateError(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.EmailDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
 	}
 }
@@ -150,13 +151,19 @@ func TestEmailDuplicatedForbidden(t *testing.T) {
 
 	forms := []emailDuplicatedTest{
 		{
-			Email:         "jinhong0719@naver.com",
+			Email:         "jinhong07191@naver.com",
 			Authorization: "ThisIsInvalidAuthorizationString",
-			ExpectCode:    http.StatusForbidden,
+		}, {
+			Email:      "jinhong07192@naver.com",
+			XRequestId: none,
+		}, {
+			Email:      "jinhong07193@naver.com",
+			XRequestId: "ThisIsInvalidXRequestIDString",
 		},
 	}
 
 	for _, form := range forms {
+		form.ExpectCode = http.StatusForbidden
 		tests = append(tests, form.createTestFromForm())
 	}
 
@@ -164,7 +171,7 @@ func TestEmailDuplicatedForbidden(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.EmailDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 	}
 }
 
@@ -177,8 +184,6 @@ func TestEmailDuplicatedBadRequest(t *testing.T) {
 	forms := []emailDuplicatedTest{
 		{
 			Email: none,
-		}, {
-			XRequestId: none,
 		}, {
 			Email: "thisEmailIsTooLongMaybe400?@naver.com",
 		}, {
@@ -196,7 +201,7 @@ func TestEmailDuplicatedBadRequest(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.EmailDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 		assert.Equalf(t, test.ExpectMessage, resp.Message, "message assertion error (test case: %v)\n", test)
 	}
 }
@@ -226,6 +231,6 @@ func TestEmailDuplicatedServerError(t *testing.T) {
 		test.setRequestContext(req)
 		test.onExpectMethods()
 		_ = h.EmailDuplicated(ctx, req, resp)
-		assert.Equalf(t, test.ExpectCode, resp.Status, "status assertion error (test case: %v)\n", test)
+		assert.Equalf(t, int(test.ExpectCode), int(resp.Status), "status assertion error (test case: %v)\n", test)
 	}
 }
