@@ -76,8 +76,8 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 	switch method {
 	case "Publish":
 		header := make(map[string]string)
-		header["XRequestId"] = c.XRequestId
-		header["MessageId"]  = c.MessageId
+		header["XRequestID"] = c.XRequestId
+		header["MessageID"]  = c.MessageId
 
 		msg := proto.CreateAuthMessage{
 			UserId:       c.UserId,

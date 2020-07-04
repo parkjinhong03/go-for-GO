@@ -71,8 +71,8 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	}
 
 	header := make(map[string]string)
-	header["XRequestId"] = xId
-	header["MessageId"] = mId
+	header["XRequestID"] = xId
+	header["MessageID"] = mId
 
 	msg := proto.CreateAuthMessage{
 		UserId:       req.UserId,
