@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
+	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"log"
 	"testing"
 	"time"
+	userProto "user/proto/user"
+	"user/subscriber"
 )
 
 type method string
@@ -29,6 +32,7 @@ type createAuthTest struct {
 	Introduction     string
 	XRequestId       string
 	MessageId		 string
+	AfterMessageId	 string
 	ExpectMethods    map[method]returns
 	ExpectError  	 error
 }
@@ -36,14 +40,15 @@ type createAuthTest struct {
 func (c createAuthTest) createTestFromForm() (test createAuthTest) {
 	test = c
 
-	if c.UserId == none 		{ test.UserId = "" } 		else if c.UserId == "" 		  { test.UserId = defaultUserId }
-	if c.UserPw == none 		{ test.UserPw = "" } 		else if c.UserPw == "" 		  { test.UserPw = defaultUserPw }
-	if c.Name == none 		 	{ test.Name = "" } 			else if c.Name == "" 		  { test.Name = defaultName }
-	if c.PhoneNumber == none  	{ test.PhoneNumber = "" }	else if c.PhoneNumber == ""   { test.PhoneNumber = defaultPN }
-	if c.Introduction == none	{ test.Introduction = "" } 	else if c.Introduction == ""  { test.Introduction = "" }
-	if c.Email == none 			{ test.Email = "" } 		else if c.Email == "" 		  { test.Email = defaultEmail }
-	if c.XRequestId == none 	{ test.XRequestId = "" }	else if c.XRequestId == ""	  { test.XRequestId = uuid.New().String() }
-	if c.MessageId == none      { test.MessageId = "" }		else if c.MessageId == ""	  { test.MessageId = random.GenerateString(32) }
+	if c.UserId == none 		{ test.UserId = "" } 		 else if c.UserId == "" 		{ test.UserId = defaultUserId }
+	if c.UserPw == none 		{ test.UserPw = "" } 		 else if c.UserPw == "" 		{ test.UserPw = defaultUserPw }
+	if c.Name == none 		 	{ test.Name = "" } 			 else if c.Name == "" 		  	{ test.Name = defaultName }
+	if c.PhoneNumber == none  	{ test.PhoneNumber = "" }	 else if c.PhoneNumber == ""   	{ test.PhoneNumber = defaultPN }
+	if c.Introduction == none	{ test.Introduction = "" } 	 else if c.Introduction == ""  	{ test.Introduction = "" }
+	if c.Email == none 			{ test.Email = "" } 		 else if c.Email == "" 		  	{ test.Email = defaultEmail }
+	if c.XRequestId == none 	{ test.XRequestId = "" }	 else if c.XRequestId == ""	  	{ test.XRequestId = uuid.New().String() }
+	if c.MessageId == none      { test.MessageId = "" }		 else if c.MessageId == ""	    { test.MessageId = random.GenerateString(32) }
+	if c.AfterMessageId == none { test.AfterMessageId = "" } else if c.AfterMessageId == ""	{ test.AfterMessageId = random.GenerateString(32) }
 
 	if _, ok := c.ExpectMethods["Insert"]; ok {
 		test.setAuthContext(c.ExpectMethods["Insert"][0].(*model.Auth))
@@ -95,7 +100,30 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		mockStore.On("Rollback").Return(returns...)
 	case "Ack":
 		mockStore.On("Ack").Return(returns...)
-		// 분산 추적 관련 메서드 추가
+	case "Publish":
+		header := c.generateAfterMsgHeader()
+
+		var id uint32
+		if _, ok := c.ExpectMethods["Insert"]; ok {
+			id = uint32(c.ExpectMethods["Insert"][0].(*model.Auth).ID)
+		}
+
+		msg := userProto.CreateUserMessage{
+			Id:           id,
+			Name:         c.Name,
+			PhoneNumber:  c.PhoneNumber,
+			Email:        c.Email,
+			Introduction: c.Introduction,
+		}
+		body, err := json.Marshal(msg)
+		if err != nil { log.Fatal(err) }
+
+		mockStore.On("Publish", subscriber.CreateUserEventTopic, &broker.Message{
+			Header: header,
+			Body:   body,
+		}).Return(returns...)
+
+	// 분산 추적 관련 메서드 추가
 	default:
 		panic(fmt.Sprintf("%s method cannot be on booked\n", method))
 	}
@@ -105,8 +133,15 @@ func (c createAuthTest) generateMsgHeader() (header map[string]string) {
 	header = make(map[string]string)
 	header["XRequestID"] = c.XRequestId
 	header["MessageID"] = c.MessageId
+	header["AfterMessageID"] = c.AfterMessageId
 	header["Env"] = "Test"
+	return
+}
 
+func (c createAuthTest) generateAfterMsgHeader() (header map[string]string) {
+	header = make(map[string]string)
+	header["XRequestID"] = c.XRequestId
+	header["MessageID"] = c.AfterMessageId
 	return
 }
 
@@ -117,14 +152,23 @@ func TestCreateAuthValidMessage(t *testing.T) {
 
 	forms := []createAuthTest{
 		{
+			UserId: "TestId1",
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
 				"InsertAuth":    {&model.Auth{}, nil},
 				"Commit":        {&gorm.DB{}},
+				"Publish":       {nil},
 				"Ack":           {nil},
 			},
 			ExpectError: nil,
 		}, {
+			UserId: "TestId2",
+			ExpectMethods: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, errors.New("can't read db")},
+			},
+			ExpectError: nil,
+		}, {
+			UserId: "TestId3",
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
 				"InsertAuth":    {&model.Auth{}, errors.New("user id duplicated error")},
@@ -132,10 +176,21 @@ func TestCreateAuthValidMessage(t *testing.T) {
 			},
 			ExpectError: nil,
 		}, {
+			UserId: "TestId4",
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
 				"InsertAuth":    {&model.Auth{}, nil},
 				"Commit":        {&gorm.DB{}},
+				"Publish":		 {errors.New("some error occurs while publishing message")},
+			},
+			ExpectError: nil,
+		}, {
+			UserId: "TestId5",
+			ExpectMethods: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"InsertAuth":    {&model.Auth{}, nil},
+				"Commit":        {&gorm.DB{}},
+				"Publish":		 {nil},
 				"Ack":           {errors.New("some error occurs while acknowledge message")},
 			},
 			ExpectError: nil,
