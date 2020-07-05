@@ -11,6 +11,7 @@ import (
 
 var mockStore mock.Mock
 var authId uint
+var psMsgId uint
 var h *auth
 var event = &CustomEvent{
 	mock: &mockStore,
@@ -32,4 +33,11 @@ func init() {
 	if err != nil { log.Fatal(err) }
 	rbMQ := br.NewRabbitMQForTest(&mockStore)
 	h = NewAuth(rbMQ, adc, validate)
+}
+
+func setUp() {
+	mockStore = mock.Mock{}
+	event.clearMessage()
+	authId = 0
+	psMsgId = 0
 }

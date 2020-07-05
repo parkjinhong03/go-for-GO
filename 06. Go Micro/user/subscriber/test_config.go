@@ -22,6 +22,7 @@ const (
 var mockStore mock.Mock
 var h *user
 var userId uint
+var psMsgId uint
 var event = &CustomEvent{
 	mock: &mockStore,
 	msg:  &broker.Message{},
@@ -39,4 +40,5 @@ func setUpEnv() {
 	mockStore = mock.Mock{}
 	event.clearMessage()
 	userId = 0
+	psMsgId = 0
 }
