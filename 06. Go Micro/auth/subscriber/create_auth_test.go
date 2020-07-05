@@ -109,7 +109,7 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		}
 
 		msg := userProto.CreateUserMessage{
-			Id:           id,
+			AuthId:       id,
 			Name:         c.Name,
 			PhoneNumber:  c.PhoneNumber,
 			Email:        c.Email,

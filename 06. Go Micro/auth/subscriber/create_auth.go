@@ -74,7 +74,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 	header["MessageID"] = aftMsgId
 
 	sendMsg := userProto.CreateUserMessage{
-		Id:           uint32(result.ID),
+		AuthId:       uint32(result.ID),
 		Name:         recvMsg.Name,
 		PhoneNumber:  recvMsg.PhoneNumber,
 		Email:        recvMsg.Email,
