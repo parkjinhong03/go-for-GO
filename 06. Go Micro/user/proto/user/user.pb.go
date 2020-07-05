@@ -150,10 +150,10 @@ type CreateUserMessage struct {
 	unknownFields protoimpl.UnknownFields
 
 	AuthId       uint32 `protobuf:"varint,1,opt,name=auth_id,json=authId,proto3" json:"auth_id,omitempty"`
-	Name         string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	PhoneNumber  string `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
-	Email        string `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
-	Introduction string `protobuf:"bytes,5,opt,name=introduction,proto3" json:"introduction,omitempty"`
+	Name         string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" validate:"required,minLength=2,maxLength=4"`
+	PhoneNumber  string `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty" validate:"required,strLength=11"`
+	Email        string `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty" validate:"required,email,maxLength=30"`
+	Introduction string `protobuf:"bytes,5,opt,name=introduction,proto3" json:"introduction,omitempty" validate:"maxLength=100"`
 }
 
 func (x *CreateUserMessage) Reset() {
