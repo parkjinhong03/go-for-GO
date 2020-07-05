@@ -5,12 +5,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setUp() {
-	mockStore = mock.Mock{}
-	event.clearMessage()
-	authId = 0
-}
-
 type CustomEvent struct {
 	mock *mock.Mock
 	msg *broker.Message
