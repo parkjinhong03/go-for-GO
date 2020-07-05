@@ -246,7 +246,7 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 	forms := []createUserTest{
 		{
 			ExpectMethods: map[method]returns{
-				"InsertMessage": {&model.ProcessedMessage{}, daoUser.EmailDuplicatedError},
+				"InsertMessage": {&model.ProcessedMessage{}, daoUser.MessageDuplicatedError},
 			},
 			ExpectError: ErrorMsgDuplicated,
 		},
