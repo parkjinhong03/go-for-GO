@@ -55,7 +55,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	switch ctx.Value("env") {
 	case "test":
 		mId, ok = md.Get("MessageID")
-		if !ok || mId == "" { rsp.SetStatus(http.StatusForbidden); return }
+		if !ok || len(mId) != 32 { rsp.SetStatus(http.StatusForbidden); return }
 	default:
 		mId = random.GenerateString(32)
 	}

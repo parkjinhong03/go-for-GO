@@ -18,8 +18,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 	msgId := header["MessageID"]
 	xReqId := header["XRequestID"]
 
-	// msgId 길이 최대 32 제한 추가
-	if xReqId == "" || msgId == "" {
+	if xReqId == "" || msgId == "" || len(msgId) != 32 {
 		return ErrorForbidden
 	}
 
@@ -44,6 +43,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 	if ok && env == "Test" {
 		ad = m.adc.GetTestAuthDAO(e.(*CustomEvent).mock)
 		aftMsgId = header["AfterMessageID"]
+		if len(aftMsgId) != 32 { return ErrorForbidden }
 	} else {
 		ad = m.adc.GetDefaultAuthDAO()
 		aftMsgId = random.GenerateString(32)
