@@ -17,7 +17,7 @@ message EmailDuplicatedResponse {
 }
 
 message CreateUserMessage {
-    uint32 id = 1;
+    uint32 auth_id = 1;
 	string name = 2;
 	string phone_number = 3;
 	string email = 4;
