@@ -50,8 +50,12 @@ func (c createAuthTest) createTestFromForm() (test createAuthTest) {
 	if c.MessageId == none      { test.MessageId = "" }		 else if c.MessageId == ""	    { test.MessageId = random.GenerateString(32) }
 	if c.AfterMessageId == none { test.AfterMessageId = "" } else if c.AfterMessageId == ""	{ test.AfterMessageId = random.GenerateString(32) }
 
-	if _, ok := c.ExpectMethods["Insert"]; ok {
-		test.setAuthContext(c.ExpectMethods["Insert"][0].(*model.Auth))
+	if _, ok := c.ExpectMethods["InsertAuth"]; ok {
+		test.setAuthContext(c.ExpectMethods["InsertAuth"][0].(*model.Auth))
+	}
+
+	if _, ok := c.ExpectMethods["InsertMessage"]; ok {
+		test.setProcessedMessageContext(c.ExpectMethods["InsertMessage"][0].(*model.ProcessedMessage))
 	}
 
 	return
@@ -65,6 +69,14 @@ func (c createAuthTest) setAuthContext(auth *model.Auth) {
 	auth.CreatedAt = time.Now()
 	auth.UpdatedAt = time.Now()
 	authId++
+}
+
+func (c createAuthTest) setProcessedMessageContext(msg *model.ProcessedMessage) {
+	msg.ID = psMsgId
+	msg.MsgId = c.MessageId
+	msg.CreatedAt = time.Now()
+	msg.UpdatedAt = time.Now()
+	psMsgId++
 }
 
 func (c createAuthTest) setMessageContext(req *proto.CreateAuthMessage) {
@@ -104,8 +116,8 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		header := c.generateAfterMsgHeader()
 
 		var id uint32
-		if _, ok := c.ExpectMethods["Insert"]; ok {
-			id = uint32(c.ExpectMethods["Insert"][0].(*model.Auth).ID)
+		if _, ok := c.ExpectMethods["InsertAuth"]; ok {
+			id = uint32(c.ExpectMethods["InsertAuth"][0].(*model.Auth).ID)
 		}
 
 		msg := userProto.CreateUserMessage{
@@ -294,6 +306,12 @@ func TestCreateAuthForbiddenMessage(t *testing.T) {
 			XRequestId: "ThisIsInvalidXRequestIDString",
 		}, {
 			MessageId: none,
+		}, {
+			AfterMessageId: none,
+		}, {
+			MessageId: "LengthOfThisMessageIDIsNotThirtyTwo",
+		}, {
+			AfterMessageId: "LengthOfThisAfterMessageIDIsNotThirtyTwo",
 		},
 	}
 

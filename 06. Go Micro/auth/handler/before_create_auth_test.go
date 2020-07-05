@@ -202,34 +202,31 @@ func TestBeforeCreateAuthForbidden(t *testing.T) {
 
 	var forms = []CreateAuthTest{
 		{
-			UserId:     "testId2",
-			Email:      "jinhong0719@naver.com",
+			UserId:     "testId1",
 			XRequestId: None,
-			ExpectCode: http.StatusForbidden,
-		}, {
-			UserId:        "testId2",
-			Email:         "jinhong0719@naver.com",
-			XRequestId:    "ThisIsInvalidXRequestIDString",
-			ExpectCode:    http.StatusForbidden,
-		}, {
-			UserId:        "testId2",
-			Email:         "jinhong0719@naver.com",
-			Authorization: None,
-			ExpectCode:    http.StatusForbidden,
-		}, {
-			UserId:        "testId2",
-			Email:         "jinhong0719@naver.com",
-			Authorization: "ThisIsInvalidAuthorizationString",
-			ExpectCode:    http.StatusForbidden,
 		}, {
 			UserId:     "testId2",
-			Email:      "jinhong0719@naver.com",
-			MessageId:  None,
-			ExpectCode: http.StatusForbidden,
+			XRequestId: "ThisIsInvalidXRequestIDString",
+		}, {
+			UserId:        "testId3",
+			Authorization: None,
+		}, {
+			UserId:        "testId4",
+			Authorization: "ThisIsInvalidAuthorizationString",
+		}, {
+			UserId:    "testId5",
+			MessageId: None,
+		}, {
+			UserId:    "testId6",
+			MessageId: "LengthOfThisMessageIDIsNotThirtyTwo",
+		}, {
+			UserId:    "testId7",
+			MessageId: None,
 		},
 	}
 
 	for _, form := range forms {
+		form.ExpectCode = http.StatusForbidden
 		tests = append(tests, form.createTestFromForm())
 	}
 
