@@ -38,6 +38,6 @@ func init() {
 func setUp() {
 	mockStore = mock.Mock{}
 	event.clearMessage()
-	authId = 0
-	psMsgId = 0
+	authId = 1
+	psMsgId = 1
 }

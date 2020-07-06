@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"log"
 	"user/dao"
-	proto "user/proto/user"
 	"user/tool/validator"
 )
 
@@ -19,7 +18,7 @@ const (
 
 var (
 	mockStore = mock.Mock{}
-	h proto.UserHandler
+	h *user
 	ctx context.Context
 )
 
