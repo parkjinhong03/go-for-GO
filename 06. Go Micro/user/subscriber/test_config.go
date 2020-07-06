@@ -17,6 +17,7 @@ const (
 	defaultName = "박진홍"
 	defaultPN = "01088378347"
 	defaultEmail = "jinhong0719@naver.com"
+	nilInt = 71098
 )
 
 var mockStore mock.Mock
@@ -39,6 +40,6 @@ func init() {
 func setUpEnv() {
 	mockStore = mock.Mock{}
 	event.clearMessage()
-	userId = 0
-	psMsgId = 0
+	userId = 1
+	psMsgId = 1
 }
