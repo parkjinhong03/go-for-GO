@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
+	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"log"
@@ -13,26 +14,30 @@ import (
 	"time"
 	daoUser "user/dao/user"
 	"user/model"
-	proto "user/proto/user"
+	authProto "user/proto/golang/auth"
+	userProto "user/proto/golang/user"
 	"user/tool/random"
+	topic "user/topic/golang"
 )
 
 type createUserTest struct {
-	AuthId         uint32
-	Name           string
-	PhoneNumber    string
-	Email          string
-	Introduction   string
-	XRequestID     string
-	MessageID      string
-	AfterMessageID string
-	ExpectMethods  map[method]returns
-	ExpectError    error
+	AuthId               uint32
+	Name                 string
+	PhoneNumber          string
+	Email                string
+	Introduction         string
+	XRequestID           string
+	MessageID            string
+	AfterMessageID       string
+	ExpectMethods        map[method]returns
+	ExpectError          error
+	SuccessBeforePublish bool // publish 전까지의 로직상 성공 여부 명시
 }
 
 func (c createUserTest) createTestFromForm() (test createUserTest) {
 	test = c
 
+	if c.AuthId == nilInt	    { test.AuthId = 0 }			 else if c.AuthId == 0			{ test.AuthId = 1 }
 	if c.Name == none 		 	{ test.Name = "" } 			 else if c.Name == "" 			{ test.Name = defaultName }
 	if c.PhoneNumber == none 	{ test.PhoneNumber = "" }  	 else if c.PhoneNumber == "" 	{ test.PhoneNumber = defaultPN }
 	if c.Email == none		 	{ test.Email = "" } 		 else if c.Email == "" 			{ test.Email = defaultEmail }
@@ -73,7 +78,7 @@ func (c createUserTest) setProcessedMessageContext(msg *model.ProcessedMessage) 
 	psMsgId++
 }
 
-func (c createUserTest) setMessageContext(msg *proto.CreateUserMessage) {
+func (c createUserTest) setMessageContext(msg *userProto.CreateUserMessage) {
 	msg.AuthId = c.AuthId
 	msg.Name = c.Name
 	msg.PhoneNumber = c.PhoneNumber
@@ -107,30 +112,22 @@ func (c createUserTest) onMethod(method method, returns returns) {
 		mockStore.On("Rollback").Return(returns...)
 	case "Ack":
 		mockStore.On("Ack").Return(returns...)
-	//case "Publish":
-	//	header := c.generateAfterMsgHeader()
-	//
-	//	var id uint32
-	//	if _, ok := c.ExpectMethods["Insert"]; ok {
-	//		id = uint32(c.ExpectMethods["Insert"][0].(*model.Auth).ID)
-	//	}
-	//
-	//	msg := userProto.CreateUserMessage{
-	//		AuthId:       id,
-	//		Name:         c.Name,
-	//		PhoneNumber:  c.PhoneNumber,
-	//		Email:        c.Email,
-	//		Introduction: c.Introduction,
-	//	}
-	//	body, err := json.Marshal(msg)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//
-	//	mockStore.On("Publish", subscriber.CreateUserEventTopic, &broker.Message{
-	//		Header: header,
-	//		Body:   body,
-	//	}).Return(returns...)
+	case "Publish":
+		header := c.generateAfterMsgHeader()
+
+		msg := authProto.ChangeAuthStatusMessage{
+			AuthId:  c.AuthId,
+			Success: c.SuccessBeforePublish,
+		}
+		body, err := json.Marshal(msg)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		mockStore.On("Publish", topic.ChangeAuthStatusEventTopic, &broker.Message{
+			Header: header,
+			Body:   body,
+		}).Return(returns...)
 
 	// 분산 추적 관련 메서드 추가
 	default:
@@ -148,9 +145,17 @@ func (c createUserTest) generateMsgHeader() (header map[string]string) {
 	return
 }
 
+func (c createUserTest) generateAfterMsgHeader() (header map[string]string) {
+	header = make(map[string]string)
+	header["XRequestID"] = c.XRequestID
+	header["MessageID"] = c.AfterMessageID
+
+	return
+}
+
 func TestCreateUserValidMessage(t *testing.T) {
 	setUpEnv()
-	msg := &proto.CreateUserMessage{}
+	msg := &userProto.CreateUserMessage{}
 	var tests []createUserTest
 
 	forms := []createUserTest{
@@ -160,32 +165,50 @@ func TestCreateUserValidMessage(t *testing.T) {
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
 				"InsertUser":    {&model.User{}, nil},
 				"Commit":        {&gorm.DB{}},
+				"Publish":       {nil},
 				"Ack":           {nil},
 			},
-			ExpectError: nil,
+			SuccessBeforePublish: true,
+			ExpectError:          nil,
 		}, {
 			AuthId: 2,
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
 				"InsertUser":    {&model.User{}, nil},
 				"Commit":        {&gorm.DB{}},
-				"Ack":           {errors.New("unable to ack this message")},
+				"Publish":       {errors.New("unable to publish message")},
 			},
-			ExpectError: nil,
+			SuccessBeforePublish: true,
+			ExpectError:          nil,
 		}, {
 			AuthId: 3,
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, nil},
-				"InsertUser":    {&model.User{}, errors.New("unable to insert user")},
-				"Rollback":      {&gorm.DB{}},
+				"InsertUser":    {&model.User{}, nil},
+				"Commit":        {&gorm.DB{}},
+				"Publish":       {nil},
+				"Ack":           {errors.New("unable to ack this message")},
 			},
-			ExpectError: nil,
+			SuccessBeforePublish: true,
+			ExpectError:          nil,
 		}, {
 			AuthId: 4,
 			ExpectMethods: map[method]returns{
-				"InsertMessage": {&model.ProcessedMessage{}, errors.New("can't read this table")},
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"InsertUser":    {&model.User{}, errors.New("unable to insert user")},
+				"Rollback":      {&gorm.DB{}},
+				"Publish":       {nil},
 			},
-			ExpectError: nil,
+			SuccessBeforePublish: false,
+			ExpectError:          nil,
+		}, {
+			AuthId: 5,
+			ExpectMethods: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, errors.New("can't read this table")},
+				"Publish":       {nil},
+			},
+			SuccessBeforePublish: false,
+			ExpectError:          nil,
 		},
 	}
 
@@ -213,7 +236,7 @@ func TestCreateUserValidMessage(t *testing.T) {
 
 func TestCreateUserUnmarshalErrorMessage(t *testing.T) {
 	setUpEnv()
-	msg := &proto.CreateUserMessage{}
+	msg := &userProto.CreateUserMessage{}
 	var tests []createUserTest
 
 	forms := []createUserTest{{ExpectError: ErrorBadRequest}}
@@ -240,7 +263,7 @@ func TestCreateUserUnmarshalErrorMessage(t *testing.T) {
 
 func TestCreateAuthDuplicatedMessage(t *testing.T) {
 	setUpEnv()
-	msg := &proto.CreateUserMessage{}
+	msg := &userProto.CreateUserMessage{}
 	var tests []createUserTest
 
 	forms := []createUserTest{
@@ -276,7 +299,7 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 
 func TestCreateAuthForbiddenMessage(t *testing.T) {
 	setUpEnv()
-	msg := &proto.CreateUserMessage{}
+	msg := &userProto.CreateUserMessage{}
 	var tests []createUserTest
 
 	forms := []createUserTest{
@@ -319,7 +342,7 @@ func TestCreateAuthForbiddenMessage(t *testing.T) {
 
 func TestCreateAuthBadRequestMessage(t *testing.T) {
 	setUpEnv()
-	msg := &proto.CreateUserMessage{}
+	msg := &userProto.CreateUserMessage{}
 	var tests []createUserTest
 
 	forms := []createUserTest{
@@ -339,6 +362,8 @@ func TestCreateAuthBadRequestMessage(t *testing.T) {
 			Email: "itIsNotEmailFormat",
 		}, {
 			Email: "itIsSoVeryTooLongEmail@naver.com",
+		}, {
+			AuthId: nilInt,
 		},
 	}
 
