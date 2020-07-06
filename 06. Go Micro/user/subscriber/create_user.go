@@ -7,8 +7,10 @@ import (
 	"user/dao"
 	userDAO "user/dao/user"
 	"user/model"
+	authProto "user/proto/golang/auth"
 	userProto "user/proto/golang/user"
 	"user/tool/random"
+	topic "user/topic/golang"
 )
 
 func (u *user) CreateUser(event broker.Event) error {
@@ -46,11 +48,20 @@ func (u *user) CreateUser(event broker.Event) error {
 		aftMsgId = random.GenerateString(32)
 	}
 
+	header = make(map[string]string)
+	header["XRequestID"] = xReqId
+	header["MessageID"] = aftMsgId
+	brkMsg := &broker.Message{Header: header}
+	sendMsg := authProto.ChangeAuthStatusMessage{AuthId: recvMsg.AuthId}
+
 	if _, err := ud.InsertMessage(&model.ProcessedMessage{
 		MsgId: msgId,
 	}); err == userDAO.MessageDuplicatedError {
 		return ErrorMsgDuplicated
 	} else if err != nil {
+		sendMsg.Success = false
+		brkMsg.Body, _ = json.Marshal(sendMsg)
+		_ = u.mq.Publish(topic.ChangeAuthStatusEventTopic, brkMsg)
 		return nil
 	}
 
@@ -64,14 +75,22 @@ func (u *user) CreateUser(event broker.Event) error {
 
 	if err != nil {
 		ud.Rollback()
+		sendMsg.Success = false
+		brkMsg.Body, _ = json.Marshal(sendMsg)
+		_ = u.mq.Publish(topic.ChangeAuthStatusEventTopic, brkMsg)
 		return nil
 	}
 	ud.Commit()
 
-	// publish 추가
+	sendMsg.Success = true
+	brkMsg.Body, _ = json.Marshal(sendMsg)
+	if err := u.mq.Publish(topic.ChangeAuthStatusEventTopic, brkMsg); err != nil {
+		// 로직상 성공, 하지만 publish 에러
+		return nil
+	}
 
 	if err := event.Ack(); err != nil {
-		//
+		// publish 까지 성공, 하지만 ack 에러
 		return nil
 	}
 
