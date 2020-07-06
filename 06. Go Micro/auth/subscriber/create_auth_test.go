@@ -3,8 +3,10 @@ package subscriber
 import (
 	"auth/dao/user"
 	"auth/model"
-	proto "auth/proto/auth"
+	authProto "auth/proto/golang/auth"
+	userProto "auth/proto/golang/user"
 	"auth/tool/random"
+	topic "auth/topic/golang"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +18,6 @@ import (
 	"log"
 	"testing"
 	"time"
-	userProto "user/proto/user"
-	"user/subscriber"
 )
 
 type method string
@@ -79,7 +79,7 @@ func (c createAuthTest) setProcessedMessageContext(msg *model.ProcessedMessage) 
 	psMsgId++
 }
 
-func (c createAuthTest) setMessageContext(req *proto.CreateAuthMessage) {
+func (c createAuthTest) setMessageContext(req *authProto.CreateAuthMessage) {
 	req.UserId = c.UserId
 	req.UserPw = c.UserPw
 	req.Name = c.Name
@@ -130,7 +130,7 @@ func (c createAuthTest) onMethod(method method, returns returns) {
 		body, err := json.Marshal(msg)
 		if err != nil { log.Fatal(err) }
 
-		mockStore.On("Publish", subscriber.CreateUserEventTopic, &broker.Message{
+		mockStore.On("Publish", topic.CreateUserEventTopic, &broker.Message{
 			Header: header,
 			Body:   body,
 		}).Return(returns...)
@@ -159,7 +159,7 @@ func (c createAuthTest) generateAfterMsgHeader() (header map[string]string) {
 
 func TestCreateAuthValidMessage(t *testing.T) {
 	setUp()
-	msg := &proto.CreateAuthMessage{}
+	msg := &authProto.CreateAuthMessage{}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{
@@ -233,7 +233,7 @@ func TestCreateAuthValidMessage(t *testing.T) {
 
 func TestCreateAuthUnmarshalErrorMessage(t *testing.T) {
 	setUp()
-	msg := &proto.CreateAuthMessage{}
+	msg := &authProto.CreateAuthMessage{}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{{ExpectError: ErrorBadRequest}}
@@ -260,7 +260,7 @@ func TestCreateAuthUnmarshalErrorMessage(t *testing.T) {
 
 func TestCreateAuthDuplicatedMessage(t *testing.T) {
 	setUp()
-	msg := &proto.CreateAuthMessage{}
+	msg := &authProto.CreateAuthMessage{}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{
@@ -296,7 +296,7 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 
 func TestCreateAuthForbiddenMessage(t *testing.T) {
 	setUp()
-	msg := &proto.CreateAuthMessage{}
+	msg := &authProto.CreateAuthMessage{}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{
@@ -339,7 +339,7 @@ func TestCreateAuthForbiddenMessage(t *testing.T) {
 
 func TestCreateAuthBadRequestMessage(t *testing.T) {
 	setUp()
-	msg := &proto.CreateAuthMessage{}
+	msg := &authProto.CreateAuthMessage{}
 	var tests []createAuthTest
 
 	forms := []createAuthTest{

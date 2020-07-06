@@ -1,7 +1,7 @@
 package handler
 
 import (
-	proto "auth/proto/auth"
+	authProto "auth/proto/golang/auth"
 	"auth/tool/jwt"
 	"errors"
 	"github.com/google/uuid"
@@ -33,7 +33,7 @@ func (c userIdDuplicatedTest) createTestFromForm() (test userIdDuplicatedTest) {
 	return
 }
 
-func (c userIdDuplicatedTest) setRequestContext(req *proto.UserIdDuplicatedRequest) {
+func (c userIdDuplicatedTest) setRequestContext(req *authProto.UserIdDuplicatedRequest) {
 	req.UserId = c.UserId
 	ctx = metadata.Set(ctx, "XRequestID", c.XRequestId)
 	ctx = metadata.Set(ctx, "Authorization", c.Authorization)
@@ -57,8 +57,8 @@ func (c userIdDuplicatedTest) onMethod(method method, returns returns) {
 
 func TestUserIdDuplicatedStatusOK(t *testing.T) {
 	setUpEnv()
-	req := &proto.UserIdDuplicatedRequest{}
-	resp := &proto.UserIdDuplicatedResponse{}
+	req := &authProto.UserIdDuplicatedRequest{}
+	resp := &authProto.UserIdDuplicatedResponse{}
 	var tests []userIdDuplicatedTest
 
 	forms := []userIdDuplicatedTest{
@@ -107,8 +107,8 @@ func TestUserIdDuplicatedStatusOK(t *testing.T) {
 
 func TestUserIdDuplicatedDuplicateError(t *testing.T) {
 	setUpEnv()
-	req := &proto.UserIdDuplicatedRequest{}
-	resp := &proto.UserIdDuplicatedResponse{}
+	req := &authProto.UserIdDuplicatedRequest{}
+	resp := &authProto.UserIdDuplicatedResponse{}
 	var tests []userIdDuplicatedTest
 
 	forms := []userIdDuplicatedTest{
@@ -145,8 +145,8 @@ func TestUserIdDuplicatedDuplicateError(t *testing.T) {
 
 func TestUserIdDuplicatedForbidden(t *testing.T) {
 	setUpEnv()
-	req := &proto.UserIdDuplicatedRequest{}
-	resp := &proto.UserIdDuplicatedResponse{}
+	req := &authProto.UserIdDuplicatedRequest{}
+	resp := &authProto.UserIdDuplicatedResponse{}
 	var tests []userIdDuplicatedTest
 
 	forms := []userIdDuplicatedTest{
@@ -179,8 +179,8 @@ func TestUserIdDuplicatedForbidden(t *testing.T) {
 
 func TestUserIdDuplicatedBadRequest(t *testing.T) {
 	setUpEnv()
-	req := &proto.UserIdDuplicatedRequest{}
-	resp := &proto.UserIdDuplicatedResponse{}
+	req := &authProto.UserIdDuplicatedRequest{}
+	resp := &authProto.UserIdDuplicatedResponse{}
 	var tests []userIdDuplicatedTest
 
 	forms := []userIdDuplicatedTest{
@@ -210,8 +210,8 @@ func TestUserIdDuplicatedBadRequest(t *testing.T) {
 
 func TestUserIdDuplicatedServerError(t *testing.T) {
 	setUpEnv()
-	req := &proto.UserIdDuplicatedRequest{}
-	resp := &proto.UserIdDuplicatedResponse{}
+	req := &authProto.UserIdDuplicatedRequest{}
+	resp := &authProto.UserIdDuplicatedResponse{}
 	var tests []userIdDuplicatedTest
 
 	forms := []userIdDuplicatedTest{

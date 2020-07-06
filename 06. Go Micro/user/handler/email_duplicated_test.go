@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 	"time"
-	proto "user/proto/user"
+	userProto "user/proto/golang/user"
 	"user/tool/jwt"
 )
 
@@ -33,7 +33,7 @@ func (e emailDuplicatedTest) createTestFromForm() (test emailDuplicatedTest) {
 	return
 }
 
-func (e emailDuplicatedTest) setRequestContext(req *proto.EmailDuplicatedRequest) {
+func (e emailDuplicatedTest) setRequestContext(req *userProto.EmailDuplicatedRequest) {
 	req.Email = e.Email
 	ctx = metadata.Set(ctx, "XRequestID", e.XRequestId)
 	ctx = metadata.Set(ctx, "Authorization", e.Authorization)
@@ -59,8 +59,8 @@ func (e emailDuplicatedTest) onMethod(method method, returns returns) {
 
 func TestEmailDuplicatedStatusOK(t *testing.T) {
 	setUpEnv()
-	req := &proto.EmailDuplicatedRequest{}
-	resp := &proto.EmailDuplicatedResponse{}
+	req := &userProto.EmailDuplicatedRequest{}
+	resp := &userProto.EmailDuplicatedResponse{}
 	var tests []emailDuplicatedTest
 
 	forms := []emailDuplicatedTest{
@@ -109,8 +109,8 @@ func TestEmailDuplicatedStatusOK(t *testing.T) {
 
 func TestEmailDuplicatedDuplicateError(t *testing.T) {
 	setUpEnv()
-	req := &proto.EmailDuplicatedRequest{}
-	resp := &proto.EmailDuplicatedResponse{}
+	req := &userProto.EmailDuplicatedRequest{}
+	resp := &userProto.EmailDuplicatedResponse{}
 	var tests []emailDuplicatedTest
 
 	forms := []emailDuplicatedTest{
@@ -145,8 +145,8 @@ func TestEmailDuplicatedDuplicateError(t *testing.T) {
 
 func TestEmailDuplicatedForbidden(t *testing.T) {
 	setUpEnv()
-	req := &proto.EmailDuplicatedRequest{}
-	resp := &proto.EmailDuplicatedResponse{}
+	req := &userProto.EmailDuplicatedRequest{}
+	resp := &userProto.EmailDuplicatedResponse{}
 	var tests []emailDuplicatedTest
 
 	forms := []emailDuplicatedTest{
@@ -177,8 +177,8 @@ func TestEmailDuplicatedForbidden(t *testing.T) {
 
 func TestEmailDuplicatedBadRequest(t *testing.T) {
 	setUpEnv()
-	req := &proto.EmailDuplicatedRequest{}
-	resp := &proto.EmailDuplicatedResponse{}
+	req := &userProto.EmailDuplicatedRequest{}
+	resp := &userProto.EmailDuplicatedResponse{}
 	var tests []emailDuplicatedTest
 
 	forms := []emailDuplicatedTest{
@@ -208,8 +208,8 @@ func TestEmailDuplicatedBadRequest(t *testing.T) {
 
 func TestEmailDuplicatedServerError(t *testing.T) {
 	setUpEnv()
-	req := &proto.EmailDuplicatedRequest{}
-	resp := &proto.EmailDuplicatedResponse{}
+	req := &userProto.EmailDuplicatedRequest{}
+	resp := &userProto.EmailDuplicatedResponse{}
 	var tests []emailDuplicatedTest
 
 	forms := []emailDuplicatedTest{

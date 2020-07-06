@@ -1,10 +1,10 @@
 package handler
 
 import (
-	proto "auth/proto/auth"
-	"auth/subscriber"
+	authProto "auth/proto/golang/auth"
 	"auth/tool/jwt"
 	"auth/tool/random"
+	topic "auth/topic/golang"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,7 +54,7 @@ func (c CreateAuthTest) createTestFromForm() (test CreateAuthTest) {
 	return
 }
 
-func (c CreateAuthTest) setRequestContext(req *proto.BeforeCreateAuthRequest) {
+func (c CreateAuthTest) setRequestContext(req *authProto.BeforeCreateAuthRequest) {
 	req.UserId = c.UserId
 	req.UserPw = c.UserPw
 	req.Name = c.Name
@@ -79,7 +79,7 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 		header["XRequestID"] = c.XRequestId
 		header["MessageID"]  = c.MessageId
 
-		msg := proto.CreateAuthMessage{
+		msg := authProto.CreateAuthMessage{
 			UserId:       c.UserId,
 			UserPw:       c.UserPw,
 			Name:         c.Name,
@@ -90,7 +90,7 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 		body, err := json.Marshal(msg)
 		if err != nil { log.Fatal(err) }
 
-		mockStore.On("Publish", subscriber.CreateAuthEventTopic, &broker.Message{
+		mockStore.On("Publish", topic.CreateAuthEventTopic, &broker.Message{
 			Header: header,
 			Body:   body,
 		}).Return(returns...)
@@ -102,8 +102,8 @@ func (c CreateAuthTest) onMethod(method method, returns returns) {
 
 func TestAuthCreateManySuccess(t *testing.T) {
 	setUpEnv()
-	req := &proto.BeforeCreateAuthRequest{}
-	resp := &proto.BeforeCreateAuthResponse{}
+	req := &authProto.BeforeCreateAuthRequest{}
+	resp := &authProto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
 	forms := []CreateAuthTest {
@@ -146,8 +146,8 @@ func TestAuthCreateManySuccess(t *testing.T) {
 
 func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 	setUpEnv()
-	req := &proto.BeforeCreateAuthRequest{}
-	resp := &proto.BeforeCreateAuthResponse{}
+	req := &authProto.BeforeCreateAuthRequest{}
+	resp := &authProto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
 	var forms = []CreateAuthTest{{
@@ -196,8 +196,8 @@ func TestBeforeCreateAuthUserIdDuplicateError(t *testing.T) {
 
 func TestBeforeCreateAuthForbidden(t *testing.T) {
 	setUpEnv()
-	req := &proto.BeforeCreateAuthRequest{}
-	resp := &proto.BeforeCreateAuthResponse{}
+	req := &authProto.BeforeCreateAuthRequest{}
+	resp := &authProto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
 	var forms = []CreateAuthTest{
@@ -244,8 +244,8 @@ func TestBeforeCreateAuthForbidden(t *testing.T) {
 
 func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 	setUpEnv()
-	req := &proto.BeforeCreateAuthRequest{}
-	resp := &proto.BeforeCreateAuthResponse{}
+	req := &authProto.BeforeCreateAuthRequest{}
+	resp := &authProto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
 	forms := []CreateAuthTest{
@@ -298,8 +298,8 @@ func TestBeforeAuthCreateInsertBadRequest(t *testing.T) {
 
 func TestBeforeCreateAuthServerError(t *testing.T) {
 	setUpEnv()
-	req := &proto.BeforeCreateAuthRequest{}
-	resp := &proto.BeforeCreateAuthResponse{}
+	req := &authProto.BeforeCreateAuthRequest{}
+	resp := &authProto.BeforeCreateAuthResponse{}
 	var tests []CreateAuthTest
 
 	var forms = []CreateAuthTest{
