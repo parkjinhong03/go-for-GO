@@ -1,0 +1,12 @@
+[submodule "06. Go Micro/auth/proto"]
+	path = 06. Go Micro/auth/proto
+	url = https://github.com/parkjinhong03/examples.blog_proto.git
+[submodule "06. Go Micro/user/proto"]
+	path = 06. Go Micro/user/proto
+	url = https://github.com/parkjinhong03/examples.blog_proto.git
+[submodule "06. Go Micro/auth/topic"]
+	path = 06. Go Micro/auth/topic
+	url = https://github.com/parkjinhong03/examples.blog_eventTopic.git
+[submodule "06. Go Micro/user/topic"]
+	path = 06. Go Micro/user/topic
+	url = https://github.com/parkjinhong03/examples.blog_eventTopic.git
