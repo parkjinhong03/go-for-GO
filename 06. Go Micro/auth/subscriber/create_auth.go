@@ -4,13 +4,13 @@ import (
 	"auth/dao"
 	"auth/dao/user"
 	"auth/model"
-	proto "auth/proto/auth"
+	authProto "auth/proto/golang/auth"
+	userProto "auth/proto/golang/user"
 	"auth/tool/random"
+	topic "auth/topic/golang"
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/broker"
-	userProto "user/proto/user"
-	"user/subscriber"
 )
 
 func (m *auth) CreateAuth(e broker.Event) error {
@@ -26,7 +26,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 		return ErrorForbidden
 	}
 
-	recvMsg := proto.CreateAuthMessage{}
+	recvMsg := authProto.CreateAuthMessage{}
 	if err := json.Unmarshal(e.Message().Body, &recvMsg); err != nil {
 		// 에러 기록
 		return ErrorBadRequest
@@ -87,7 +87,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 		return nil
 	}
 
-	if err := m.mq.Publish(subscriber.CreateUserEventTopic, &broker.Message{
+	if err := m.mq.Publish(topic.CreateUserEventTopic, &broker.Message{
 		Header: header,
 		Body:   body,
 	}); err != nil {

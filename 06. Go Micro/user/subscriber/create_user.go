@@ -7,7 +7,7 @@ import (
 	"user/dao"
 	userDAO "user/dao/user"
 	"user/model"
-	proto "user/proto/user"
+	userProto "user/proto/golang/user"
 	"user/tool/random"
 )
 
@@ -24,7 +24,7 @@ func (u *user) CreateUser(event broker.Event) error {
 		return ErrorForbidden
 	}
 
-	recvMsg := proto.CreateUserMessage{}
+	recvMsg := userProto.CreateUserMessage{}
 	if err := json.Unmarshal(event.Message().Body, &recvMsg); err != nil {
 		return ErrorBadRequest
 	}

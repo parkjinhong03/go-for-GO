@@ -2,7 +2,7 @@ package handler
 
 import (
 	"auth/dao"
-	proto "auth/proto/auth"
+	authProto "auth/proto/golang/auth"
 	"auth/tool/jwt"
 	"context"
 	"github.com/google/uuid"
@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func (e *auth) UserIdDuplicated(ctx context.Context, req *proto.UserIdDuplicatedRequest, rsp *proto.UserIdDuplicatedResponse) (_ error) {
+func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplicatedRequest, rsp *authProto.UserIdDuplicatedResponse) (_ error) {
 	if err := e.validate.Struct(req); err != nil {
 		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return

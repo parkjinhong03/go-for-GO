@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"time"
 	"user/dao"
-	proto "user/proto/user"
+	userProto "user/proto/golang/user"
 	"user/tool/jwt"
 )
 
-func (u *user) EmailDuplicated(ctx context.Context, req *proto.EmailDuplicatedRequest, rsp *proto.EmailDuplicatedResponse) (_ error) {
+func (u *user) EmailDuplicated(ctx context.Context, req *userProto.EmailDuplicatedRequest, rsp *userProto.EmailDuplicatedResponse) (_ error) {
 	if err := u.validate.Struct(req); err != nil {
 		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return

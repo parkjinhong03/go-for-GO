@@ -1,10 +1,10 @@
 package handler
 
 import (
-	proto "auth/proto/auth"
-	"auth/subscriber"
+	authProto "auth/proto/golang/auth"
 	"auth/tool/jwt"
 	"auth/tool/random"
+	topic "auth/topic/golang"
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
@@ -13,7 +13,7 @@ import (
 	"net/http"
 )
 
-func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuthRequest, rsp *proto.BeforeCreateAuthResponse) (_ error) {
+func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreateAuthRequest, rsp *authProto.BeforeCreateAuthResponse) (_ error) {
 	var err error
 	if err := e.validate.Struct(req); err != nil {
 		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
@@ -74,7 +74,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 	header["XRequestID"] = xId
 	header["MessageID"] = mId
 
-	msg := proto.CreateAuthMessage{
+	msg := authProto.CreateAuthMessage{
 		UserId:       req.UserId,
 		UserPw:       req.UserPw,
 		Name:         req.Name,
@@ -88,7 +88,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *proto.BeforeCreateAuth
 		rsp.SetStatus(http.StatusInternalServerError)
 	}
 
-	if err = e.mq.Publish(subscriber.CreateAuthEventTopic, &broker.Message{
+	if err = e.mq.Publish(topic.CreateAuthEventTopic, &broker.Message{
 		Header: header,
 		Body:   body,
 	}); err != nil {
