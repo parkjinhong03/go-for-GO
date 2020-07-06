@@ -23,7 +23,7 @@ func main() {
 	rbMQ := br.ConnRabbitMQ()
 
 	h := handler.NewUser(rbMQ, validate, udc)
-	s := subscriber.NewUser()
+	s := subscriber.NewUser(rbMQ, validate, udc)
 
 	service := micro.NewService(
 		micro.Name("examples.blog.service.user"),

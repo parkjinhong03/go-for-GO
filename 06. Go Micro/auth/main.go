@@ -5,9 +5,10 @@ import (
 	"auth/adapter/db"
 	"auth/dao"
 	"auth/handler"
-	proto "auth/proto/auth"
+	authProto "auth/proto/golang/auth"
 	"auth/subscriber"
 	"auth/tool/validator"
+	topic "auth/topic/golang"
 	"github.com/micro/go-micro/v2"
 	br "github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
@@ -42,12 +43,20 @@ func main() {
 	// 초기화 핸들러 함수 생성
 	brkHandleFunc := func() (err error) {
 		brk := service.Options().Broker
+
 		if err = brk.Connect(); err != nil { log.Fatal(err) }
-		_, err = brk.Subscribe(subscriber.CreateAuthEventTopic, s.CreateAuth,
-			br.Queue(subscriber.CreateAuthEventTopic), // Queue 정적 이름 설정
+		_, err = brk.Subscribe(topic.CreateAuthEventTopic, s.CreateAuth,
+			br.Queue(topic.CreateAuthEventTopic), // Queue 정적 이름 설정
 			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
 			rabbitmq.DurableQueue()) // Queue 연결을 종료해도 삭제X 설정
 		if err != nil { log.Fatal(err) }
+
+		_, err = brk.Subscribe(topic.ChangeAuthStatusEventTopic, s.ChangeAuthStatus,
+			br.Queue(topic.ChangeAuthStatusEventTopic), // Queue 정적 이름 설정
+			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
+			rabbitmq.DurableQueue()) // Queue 연결을 종료해도 삭제X 설정
+		if err != nil { log.Fatal(err) }
+
 		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
 		return
 	}
@@ -58,7 +67,7 @@ func main() {
 	)
 
 	// 핸들러 등록 및 서비스 실행
- 	if err := proto.RegisterAuthHandler(service.Server(), h); err != nil {
+ 	if err := authProto.RegisterAuthHandler(service.Server(), h); err != nil {
  		log.Fatal(err)
 	}
 	if err := service.Run(); err != nil {
