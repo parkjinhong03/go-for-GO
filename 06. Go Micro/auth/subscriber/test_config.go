@@ -25,6 +25,7 @@ const (
 	defaultName = "박진홍"
 	defaultPN = "01088378347"
 	defaultEmail = "jinhong0719@naver.com"
+	noneInt uint32 = 67981345
 )
 
 func init() {
