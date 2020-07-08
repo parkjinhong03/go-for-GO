@@ -5,20 +5,27 @@ import (
 	"auth/model"
 	authProto "auth/proto/golang/auth"
 	"auth/tool/random"
+	"encoding/json"
+	"errors"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"log"
+	"testing"
 	"time"
 )
 
 type changeAuthStatusTest struct {
 	AuthId       uint32
-	Success      bool
+	Success      bool // examples.blog.service.user.CreateUser 로 부터 받은 msg의 success 필드
 	ExpectError  error
 	ExpectMethod map[method]returns
 	XRequestID   string
 	MessageID	 string
 }
 
-func (c changeAuthStatusTest) createTestFromForm(test changeAuthStatusTest) {
+func (c changeAuthStatusTest) createTestFromForm() (test changeAuthStatusTest) {
 	test = c
 
 	if c.AuthId == noneInt 	{ test.AuthId = 0 } 	 else if c.AuthId == 0 		{ test.AuthId = 1 }
@@ -75,5 +82,72 @@ func (c changeAuthStatusTest) onMethod(method method, returns returns) {
 		mockStore.On("Rollback").Return(returns...)
 	case "Ack":
 		mockStore.On("Ack").Return(returns...)
+	}
+}
+
+func TestAuthChangeAuthStatusValidMessage(t *testing.T) {
+	setUp()
+	msg := &authProto.ChangeAuthStatusMessage{}
+	var tests []changeAuthStatusTest
+
+	forms := []changeAuthStatusTest{
+		{
+			AuthId:  1,
+			Success: true,
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"UpdateStatus":  {nil},
+				"Commit":        {&gorm.DB{}},
+				"Ack":           {nil},
+			},
+			ExpectError: nil,
+		}, {
+			AuthId:  2,
+			Success: true,
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"UpdateStatus":  {nil},
+				"Commit":        {&gorm.DB{}},
+				"Ack":           {errors.New("unable to ack message")},
+			},
+			ExpectError: nil,
+		}, {
+			AuthId:  3,
+			Success: true,
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"UpdateStatus":  {errors.New("unable to update auth's status")},
+				"Rollback":      {&gorm.DB{}},
+			},
+			ExpectError: nil,
+		}, {
+			AuthId:  4,
+			Success: true,
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, errors.New("unable to read db")},
+			},
+			ExpectError: nil,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, err := json.Marshal(msg)
+		if err != nil { log.Fatal(err) }
+
+		event.setMessage(header, body)
+		err = h.ChangeAuthStatus(event)
+
+		assert.Equalf(t, test.ExpectError, err, "error assertion error (test caseL %v)\n", test)
+		mockStore.AssertExpectations(t)
 	}
 }
