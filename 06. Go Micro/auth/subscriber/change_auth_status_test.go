@@ -151,3 +151,31 @@ func TestAuthChangeAuthStatusValidMessage(t *testing.T) {
 		mockStore.AssertExpectations(t)
 	}
 }
+
+func TestAuthChangeAuthStatusUnmarshalErrorMessage(t *testing.T) {
+	setUp()
+	msg := &authProto.ChangeAuthStatusMessage{}
+	var tests []changeAuthStatusTest
+
+	forms := []changeAuthStatusTest{{ ExpectError: ErrorBadRequest }}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body := []byte("unableToUnmarshalThisByteArrToStruct")
+
+		event.setMessage(header, body)
+		err := h.ChangeAuthStatus(event)
+
+		assert.Equalf(t, test.ExpectError, err, "error assertion error (test caseL %v)\n", test)
+		mockStore.AssertExpectations(t)
+	}
+}
