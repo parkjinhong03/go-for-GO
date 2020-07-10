@@ -55,6 +55,7 @@ func (c changeAuthStatusTest) generateMsgHeader() (header map[string]string) {
 	header = make(map[string]string)
 	header["XRequestID"] = c.XRequestID
 	header["MessageID"] = c.MessageID
+	header["Env"] = "Test"
 	return
 }
 
@@ -75,7 +76,7 @@ func (c changeAuthStatusTest) onMethod(method method, returns returns) {
 		if !c.Success {
 			status = user.Rejected
 		}
-		mockStore.On("UpdateStatus", c.AuthId, status).Return(returns...)
+		mockStore.On("UpdateStatus", uint(c.AuthId), status).Return(returns...)
 	case "Commit":
 		mockStore.On("Commit").Return(returns...)
 	case "Rollback":
@@ -127,6 +128,16 @@ func TestAuthChangeAuthStatusValidMessage(t *testing.T) {
 				"InsertMessage": {&model.ProcessedMessage{}, errors.New("unable to read db")},
 			},
 			ExpectError: nil,
+		}, {
+			AuthId:  5,
+			Success: false,
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, nil},
+				"UpdateStatus":  {nil},
+				"Commit":        {&gorm.DB{}},
+				"Ack":           {nil},
+			},
+			ExpectError: nil,
 		},
 	}
 
@@ -176,6 +187,113 @@ func TestAuthChangeAuthStatusUnmarshalErrorMessage(t *testing.T) {
 		err := h.ChangeAuthStatus(event)
 
 		assert.Equalf(t, test.ExpectError, err, "error assertion error (test caseL %v)\n", test)
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestChangeAUthStatusDuplicatedMessage(t *testing.T) {
+	setUp()
+	msg := &authProto.ChangeAuthStatusMessage{}
+	var tests []changeAuthStatusTest
+
+	forms := []changeAuthStatusTest{
+		{
+			ExpectMethod: map[method]returns{
+				"InsertMessage": {&model.ProcessedMessage{}, user.MsgIdDuplicateError},
+			},
+			ExpectError: ErrorMsgDuplicated,
+		},
+	}
+
+	for _, form := range forms {
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, err := json.Marshal(msg)
+		if err != nil { log.Fatal(err) }
+		event.setMessage(header, body)
+
+		err = h.ChangeAuthStatus(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestChangeAuthStatusForbiddenMessage(t *testing.T) {
+	setUp()
+	msg := &authProto.ChangeAuthStatusMessage{}
+	var tests []changeAuthStatusTest
+
+	forms := []changeAuthStatusTest{
+		{
+			XRequestID: none,
+		}, {
+			XRequestID: "ThisIsInvalidXRequestIDString",
+		}, {
+			MessageID: none,
+		}, {
+			MessageID: "LengthOfThisMessageIDIsNotThirtyTwo",
+		},
+	}
+
+	for _, form := range forms {
+		form.ExpectError = ErrorForbidden
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, _ := json.Marshal(msg)
+		event.setMessage(header, body)
+
+		err := h.ChangeAuthStatus(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
+		mockStore.AssertExpectations(t)
+	}
+}
+
+func TestChangeAuthStatusBadRequestMessage(t *testing.T) {
+	setUp()
+	msg := &authProto.ChangeAuthStatusMessage{}
+	var tests []changeAuthStatusTest
+
+	forms := []changeAuthStatusTest{{
+		AuthId:      noneInt,
+		ExpectError: ErrorBadRequest,
+	}}
+
+	for _, form := range forms {
+		form.ExpectError = ErrorBadRequest
+		tests = append(tests, form.createTestFromForm())
+	}
+
+	for _, test := range tests {
+		mockStore = mock.Mock{}
+
+		test.setMessageContext(msg)
+		test.onExpectMethods()
+
+		header := test.generateMsgHeader()
+		body, _ := json.Marshal(msg)
+		event.setMessage(header, body)
+
+		err := h.ChangeAuthStatus(event)
+		assert.Equalf(t, test.ExpectError, err, "error assert error (test case: %v)\n", test)
+
 		mockStore.AssertExpectations(t)
 	}
 }
