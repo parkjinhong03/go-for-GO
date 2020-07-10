@@ -27,6 +27,7 @@ func NewAuthDAOCreator(db *gorm.DB) (adc *AuthDAOCreator) {
 
 type AuthDAOService interface {
 	InsertAuth(*model.Auth) (result *model.Auth, err error)
+	UpdateStatus(id uint, status string) (err error)
 	CheckIfUserIdExist(id string) (exist bool, err error)
 	Commit() *gorm.DB
 	Rollback() *gorm.DB

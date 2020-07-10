@@ -21,6 +21,10 @@ func (td *testDAO) InsertAuth(auth *model.Auth) (*model.Auth, error) {
 	return args.Get(0).(*model.Auth), args.Error(1)
 }
 
+func (td *testDAO) UpdateStatus(id uint, status string) error {
+	return td.mock.Called(id, status).Error(0)
+}
+
 func (td *testDAO) InsertMessage(msg *model.ProcessedMessage) (*model.ProcessedMessage, error) {
 	args := td.mock.Called(msg)
 	return args.Get(0).(*model.ProcessedMessage), args.Error(1)

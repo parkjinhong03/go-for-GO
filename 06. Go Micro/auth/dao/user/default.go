@@ -25,16 +25,47 @@ func (d *defaultDAO) InsertAuth(u *model.Auth) (result *model.Auth, err error) {
 	}
 
 	r := d.db.Create(u)
-	if r.Error == nil { result = r.Value.(*model.Auth); return }
+	if r.Error == nil {
+		result = r.Value.(*model.Auth)
+		return
+	}
 
 	code, err := parser.DBErrorParse(r.Error.Error())
-	if err != nil { err = parser.InvalidError; return }
+	if err != nil {
+		err = parser.InvalidError
+		return
+	}
 
 	switch code {
 	case IdDuplicateErrorCode:
 		err = IdDuplicateError
 	case DataTooLongErrorCode:
 		err = DataLengthOverError
+	default:
+		err = r.Error
+	}
+	return
+}
+
+func (d *defaultDAO) UpdateStatus(id uint, status string) (err error) {
+	if !contains([]string{CreatePending, Created, Rejected, Remove}, status) {
+		err = InvalidStatusError
+		return
+	}
+
+	auth := model.Auth{}
+	auth.ID = id
+
+	r := d.db.Model(&auth).Update("status", status)
+	if r.Error == nil { return }
+
+	code, err := parser.DBErrorParse(r.Error.Error())
+	if err != nil {
+		err = parser.InvalidError
+		return
+	}
+
+	switch code {
 	default:
 		err = r.Error
 	}
@@ -73,4 +104,11 @@ func (d *defaultDAO) Commit() *gorm.DB {
 
 func (d *defaultDAO) Rollback() *gorm.DB {
 	return d.db.Rollback()
+}
+
+func contains(arrStr []string, index string) bool {
+	for _, str := range arrStr {
+		if str == index { return true }
+	}
+	return false
 }
