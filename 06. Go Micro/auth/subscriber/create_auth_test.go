@@ -268,7 +268,7 @@ func TestCreateAuthDuplicatedMessage(t *testing.T) {
 			ExpectMethods: map[method]returns{
 				"InsertMessage": {&model.ProcessedMessage{}, user.MsgIdDuplicateError},
 			},
-			ExpectError: ErrorDuplicated,
+			ExpectError: ErrorMsgDuplicated,
 		},
 	}
 

@@ -52,7 +52,7 @@ func (m *auth) CreateAuth(e broker.Event) error {
 	if _, err := ad.InsertMessage(&model.ProcessedMessage{
 		MsgId: msgId,
 	}); err != nil {
-		if err == user.MsgIdDuplicateError { return ErrorDuplicated }
+		if err == user.MsgIdDuplicateError { return ErrorMsgDuplicated }
 		return nil
 	}
 
