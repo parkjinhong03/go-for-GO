@@ -9,7 +9,7 @@ import (
 	"user/adapter/db"
 	"user/dao"
 	"user/handler"
-	proto "user/proto/user"
+	userProto "user/proto/golang/user"
 	"user/subscriber"
 	"user/tool/validator"
 )
@@ -42,7 +42,7 @@ func main() {
 
 	service.Init(micro.AfterStart(brkHandler))
 
-	if err = proto.RegisterUserHandler(service.Server(), h); err != nil {
+	if err = userProto.RegisterUserHandler(service.Server(), h); err != nil {
 		log.Fatal(err)
 	}
 	if err := service.Run(); err != nil {
