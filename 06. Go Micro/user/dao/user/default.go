@@ -1,9 +1,10 @@
 package user
 
 import (
+	"errors"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"user/model"
-	"user/tool/parser"
 )
 
 // 통합 테스트 필요
@@ -21,16 +22,23 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 	r := d.db.Create(user)
 	if r.Error == nil { return r.Value.(*model.User), nil }
 
-	code, err := parser.ParseDBError(r.Error.Error())
-	if err != nil { err = parser.InvalidError; return }
+	var code int
+	var msg string
+	if me, ok := r.Error.(*mysql.MySQLError); ok {
+		code = int(me.Number)
+		msg = me.Message
+	}
+
+	//code, err = parser.ParseDBError(r.Error.Error())
+	//if err != nil { err = parser.InvalidError; return }
 
 	switch code {
-	case EmailDuplicatedErrorCode:
-		err = EmailDuplicatedError
+	case DuplicatedErrorCode:
+		err = EmailDuplicatedError // AuthIdDuplicatedError??
 	case DataTooLongErrorCode:
 		err = DataTooLongError
 	default:
-		err = r.Error
+		err = errors.New(msg)
 	}
 
 	return
@@ -57,14 +65,21 @@ func (d *defaultDAO) InsertMessage(pm *model.ProcessedMessage) (result *model.Pr
 	r := d.db.Create(pm)
 	if r.Error == nil { return r.Value.(*model.ProcessedMessage), nil }
 
-	code, err := parser.ParseDBError(r.Error.Error())
-	if err != nil { err = parser.InvalidError; return }
+	var code int
+	var message string
+	if me, ok := r.Error.(*mysql.MySQLError); ok {
+		code = int(me.Number)
+		message = me.Message
+	}
+
+	//code, err := parser.ParseDBError(r.Error.Error())
+	//if err != nil { err = parser.InvalidError; return }
 
 	switch code {
-	case MessageDuplicatedErrorCode:
-		err = MessageDuplicatedError
+	case DuplicatedErrorCode:
+		err = MessageDuplicatedError // EmailDuplicatedError??
 	default:
-		err = r.Error
+		err = errors.New(message)
 	}
 
 	return
