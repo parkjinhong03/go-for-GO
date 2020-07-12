@@ -27,6 +27,8 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 	switch code {
 	case EmailDuplicatedErrorCode:
 		err = EmailDuplicatedError
+	case DataTooLongErrorCode:
+		err = DataTooLongError
 	default:
 		err = r.Error
 	}
