@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"strings"
 	"user/model"
 )
 
@@ -34,7 +35,12 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 
 	switch code {
 	case DuplicatedErrorCode:
-		err = EmailDuplicatedError // AuthIdDuplicatedError??
+		switch attr := strings.Split(msg, "'")[3]; attr {
+		case AttributeAuthId:
+			err = AuthIdDuplicatedError
+		case AttributeEmail:
+			err = EmailDuplicatedError
+		}
 	case DataTooLongErrorCode:
 		err = DataTooLongError
 	default:
