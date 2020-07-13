@@ -4,8 +4,10 @@ import (
 	"auth/model"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
+	"testing"
 )
 
 var ud *defaultDAO
@@ -13,7 +15,7 @@ var ud *defaultDAO
 func connectDB () *gorm.DB {
 	dbUser := os.Getenv("DB_USER")
 	dbPwd := os.Getenv("DB_PASSWORD")
-	addr := fmt.Sprintf("%s:%s@/UserTestDB?charset=utf8&parseTime=True&loc=Local", dbUser, dbPwd)
+	addr := fmt.Sprintf("%s:%s@/AuthTestDB?charset=utf8&parseTime=True&loc=Local", dbUser, dbPwd)
 	db, err := gorm.Open("mysql", addr)
 	if err != nil { log.Fatal(err) }
 	return db
@@ -81,4 +83,39 @@ type updateStatusTest struct {
 
 func (us updateStatusTest) Exec() error {
 	return ud.UpdateStatus(us.id, us.status)
+}
+
+func TestDefaultAuthDAOInsertAuth(t *testing.T) {
+	setUpEnv()
+
+	tests := []insertAuthTest{
+		{
+			UserId: "jinhong0719",
+			UserPw: "testPW",
+			Status: CreatePending,
+			ExpectError: nil,
+		}, {
+			UserId: "jinhong0719",
+			UserPw: "testPW",
+			Status: CreatePending,
+			ExpectError: UserIdDuplicatedError,
+		}, {
+			UserId: "jin0719",
+			UserPw: "testPW",
+			Status: "InvalidStatus",
+			ExpectError: InvalidStatusError,
+		}, {
+			UserId: "jinhong0719jinhong0719",
+			UserPw: "testPW",
+			Status: CreatePending,
+			ExpectError: UserIdTooLongError,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := test.Exec()
+		assert.Equalf(t, test.ExpectError, err, "error assertion error (test case: %v)\n", test)
+	}
+
+	ud.Rollback()
 }
