@@ -25,7 +25,7 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 
 	var code int
 	var msg string
-	if me, ok := r.Error.(*mysql.MySQLError); ok {
+	if me, ok := r.Error.(*mysql.MySQLError); ok { // 만약 mysql 연결 db가 아닐 경우에는?
 		code = int(me.Number)
 		msg = me.Message
 	}
@@ -36,15 +36,26 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 	switch code {
 	case DuplicatedErrorCode:
 		switch attr := strings.Split(msg, "'")[3]; attr {
-		case AttributeAuthId:
+		case KeyAuthId:
 			err = AuthIdDuplicatedError
-		case AttributeEmail:
+		case KeyEmail:
 			err = EmailDuplicatedError
+		default:
+			err = r.Error
 		}
 	case DataTooLongErrorCode:
-		err = DataTooLongError
+		switch attr := strings.Split(msg, "'")[1]; attr {
+		case ColumnName:
+			err = NameTooLongError
+		case ColumnEmail:
+			err = EmailTooLongError
+		case ColumnPhoneNumber:
+			err = PhoneNumberTooLongError
+		default:
+			err = r.Error
+		}
 	default:
-		err = errors.New(msg)
+		err = r.Error
 	}
 
 	return
@@ -53,8 +64,11 @@ func (d *defaultDAO) InsertUser(user *model.User) (result *model.User, err error
 func (d *defaultDAO) CheckIfEmailExist(email string) (exist bool, err error) {
 	user := model.User{}
 	exist = false
-	r := d.db.Where("email = ?", email).Select(&user)
-	if err = r.Error; err != nil { return }
+	r := d.db.Where("email = ?", email).Find(&user)
+
+	if r.Error != nil && r.Error != gorm.ErrRecordNotFound {
+		err = r.Error
+	}
 	if r.RowsAffected != 0 { exist = true }
 	return
 }
