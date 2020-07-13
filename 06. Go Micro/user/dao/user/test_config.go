@@ -17,9 +17,9 @@ func init() {
 	db, err := gorm.Open("mysql", addr)
 	if err != nil { log.Fatal(err) }
 
-	db.DropTableIfExists(model.User{})
-	db.CreateTable(model.User{})
-	db.AutoMigrate(model.User{})
+	db.DropTableIfExists(model.User{}, model.ProcessedMessage{})
+	db.CreateTable(model.User{}, model.ProcessedMessage{})
+	db.AutoMigrate(model.User{}, model.ProcessedMessage{})
 	db.LogMode(false)
 
 	_ = db.Close()
@@ -52,6 +52,17 @@ type checkIfEmailExistTest struct {
 
 func (c checkIfEmailExistTest) Exec() (bool, error) {
 	return ud.CheckIfEmailExist(c.Email)
+}
+
+type insertMessageTest struct {
+	MsgId       string
+	ExpectError error
+}
+
+func (im insertMessageTest) Exec() (*model.ProcessedMessage, error) {
+	return ud.InsertMessage(&model.ProcessedMessage{
+		MsgId: im.MsgId,
+	})
 }
 
 func setUpEnv() {
