@@ -118,4 +118,52 @@ func TestDefaultAuthDAOInsertAuth(t *testing.T) {
 	}
 
 	ud.Rollback()
+	_ = ud.db.Close()
+}
+
+func TestDefaultAuthDAOUpdateStatus(t *testing.T) {
+	setUpEnv()
+
+	inits := []insertAuthTest{
+		{
+			UserId: "jinhong0719",
+			UserPw: "TestPw",
+			Status: CreatePending,
+		},
+	}
+
+	var pk uint
+	for _, init := range inits {
+		r, err := init.Exec()
+		if err != nil { log.Fatal(err) }
+		pk = r.ID
+	}
+
+	tests := []updateStatusTest{
+		{
+			id:          pk,
+			status:      Created,
+			expectError: nil,
+		}, {
+			id:          pk,
+			status:      Created,
+			expectError: nil,
+		}, {
+			id:          pk+1,
+			status:      Created,
+			expectError: NonexistentUserError,
+		}, {
+			id:          pk,
+			status:      "ThisIsInvalidStatus",
+			expectError: InvalidStatusError,
+		},
+	}
+
+	for _, test := range tests {
+		err := test.Exec()
+		assert.Equalf(t, test.expectError, err, "error assertion error (test case: %v)\n", test)
+	}
+
+	ud.Rollback()
+	_ = ud.db.Close()
 }
