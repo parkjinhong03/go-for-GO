@@ -2,6 +2,7 @@ package user
 
 import (
 	"auth/model"
+	"auth/tool/random"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
@@ -162,6 +163,32 @@ func TestDefaultAuthDAOUpdateStatus(t *testing.T) {
 	for _, test := range tests {
 		err := test.Exec()
 		assert.Equalf(t, test.expectError, err, "error assertion error (test case: %v)\n", test)
+	}
+
+	ud.Rollback()
+	_ = ud.db.Close()
+}
+
+func TestDefaultAuthDAOInsertMessage(t *testing.T) {
+	setUpEnv()
+
+	msgId := random.GenerateString(32)
+	tests := []insertMessageTest{
+		{
+			MsgId: msgId,
+			ExpectError: nil,
+		}, {
+			MsgId: msgId,
+			ExpectError: MsgIdDuplicateError,
+		}, {
+			MsgId: random.GenerateString(33),
+			ExpectError: MsgIdTooLongError,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := test.Exec()
+		assert.Equalf(t, test.ExpectError, err, "error assertion error (test case: %v)\n", test)
 	}
 
 	ud.Rollback()
