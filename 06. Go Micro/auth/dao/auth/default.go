@@ -71,29 +71,22 @@ func (d *defaultDAO) InsertAuth(u *model.Auth) (result *model.Auth, err error) {
 	return
 }
 
-func (d *defaultDAO) UpdateStatus(id uint, status string) (err error) {
+func (d *defaultDAO) UpdateStatus(id uint, status string) error {
 	if !contains([]string{CreatePending, Created, Rejected, Remove}, status) {
-		err = InvalidStatusError
-		return
+		return InvalidStatusError
 	}
 
-	auth := model.Auth{}
+	var auth model.Auth
+	var count uint
 	auth.ID = id
 
+	d.db.Where("id = ?", id).Find(&auth).Count(&count)
+	if count == 0 {
+		return NonexistentUserError
+	}
+
 	r := d.db.Model(&auth).Update("status", status)
-	if r.Error == nil { return }
-
-	code, err := parser.DBErrorParse(r.Error.Error())
-	if err != nil {
-		err = parser.InvalidError
-		return
-	}
-
-	switch code {
-	default:
-		err = r.Error
-	}
-	return
+	return r.Error
 }
 
 func (d *defaultDAO) InsertMessage(m *model.ProcessedMessage) (result *model.ProcessedMessage, err error) {
