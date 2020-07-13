@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
+	"user/tool/random"
 )
 
 func TestDefaultUserDAOInsertUser(t *testing.T) {
@@ -104,4 +105,27 @@ func TestDefaultUserDAOCheckIfEmailExist(t *testing.T) {
 
 	ud.Rollback()
 	_ = ud.db.Close()
+}
+
+func TestDefaultUserDAOInsertMessage(t *testing.T) {
+	setUpEnv()
+	msgId := random.GenerateString(32)
+
+	tests := []insertMessageTest{
+		{
+			MsgId:       msgId,
+			ExpectError: nil,
+		}, {
+			MsgId:       msgId,
+			ExpectError: MessageDuplicatedError,
+		}, {
+			MsgId:       random.GenerateString(33),
+			ExpectError: MessageTooLongError,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := test.Exec()
+		assert.Equalf(t, test.ExpectError, err, "error assertion error (test case: %v)\n", test)
+	}
 }
