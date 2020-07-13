@@ -12,4 +12,5 @@ var (
 	NameTooLongError = errors.New("name too long error")
 	EmailTooLongError = errors.New("email too long error")
 	PhoneNumberTooLongError = errors.New("phone number too long error")
+	MessageTooLongError = errors.New("message id too long error")
 )
