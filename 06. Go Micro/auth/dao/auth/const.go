@@ -14,8 +14,10 @@ const (
 
 const (
 	KeyUserId = "uix_auths_user_id"
+	KeyMsgId = "uix_processed_messages_msg_id"
 )
 
 const (
 	ColumnUserId = "user_id"
+	ColumnMsgId = "msg_id"
 )

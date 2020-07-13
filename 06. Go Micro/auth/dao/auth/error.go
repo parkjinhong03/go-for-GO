@@ -15,4 +15,5 @@ var (
 
 var (
 	UserIdTooLongError = errors.New("user id too long error")
+	MsgIdTooLongError = errors.New("message id too long error")
 )
