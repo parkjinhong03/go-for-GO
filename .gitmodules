@@ -10,3 +10,6 @@
 [submodule "06. Go Micro/user/topic"]
 	path = 06. Go Micro/user/topic
 	url = https://github.com/parkjinhong03/examples.blog_eventTopic.git
+[submodule "06. Go Micro/api/proto"]
+	path = 06. Go Micro/api/proto
+	url = https://github.com/parkjinhong03/examples.blog_proto.git
