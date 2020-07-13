@@ -1,7 +1,7 @@
 package dao
 
 import (
-	"auth/dao/user"
+	"auth/dao/auth"
 	"auth/model"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/mock"

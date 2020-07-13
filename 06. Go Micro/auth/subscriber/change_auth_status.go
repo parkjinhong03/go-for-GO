@@ -2,7 +2,7 @@ package subscriber
 
 import (
 	"auth/dao"
-	"auth/dao/user"
+	"auth/dao/auth"
 	"auth/model"
 	authProto "auth/proto/golang/auth"
 	"encoding/json"
