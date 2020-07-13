@@ -5,6 +5,7 @@ import "errors"
 var (
 	BcryptGenerateError = errors.New("bcrypt hash generate error")
 	InvalidStatusError = errors.New("this status is invalid")
+	NonexistentUserError = errors.New("user does not exist")
 )
 
 var (
