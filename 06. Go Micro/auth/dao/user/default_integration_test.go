@@ -37,3 +37,48 @@ func setUpEnv() {
 	ud.db = ud.db.Begin()
 }
 
+type insertAuthTest struct {
+	UserId      string
+	UserPw      string
+	Status      string
+	ExpectError error
+}
+
+func (ia insertAuthTest) Exec() (*model.Auth, error) {
+	return ud.InsertAuth(&model.Auth{
+		UserId: ia.UserId,
+		UserPw: ia.UserPw,
+		Status: ia.Status,
+	})
+}
+
+type insertMessageTest struct {
+	MsgId       string
+	ExpectError error
+}
+
+func (im insertMessageTest) Exec() (*model.ProcessedMessage, error) {
+	return ud.InsertMessage(&model.ProcessedMessage{
+		MsgId: im.MsgId,
+	})
+}
+
+type checkIfUserIdExist struct {
+	UserId      string
+	expectExist bool
+	expectError error
+}
+
+func (c checkIfUserIdExist) Exec() (bool, error) {
+	return ud.CheckIfUserIdExist(c.UserId)
+}
+
+type updateStatusTest struct {
+	id          uint
+	status      string
+	expectError error
+}
+
+func (us updateStatusTest) Exec() error {
+	return ud.UpdateStatus(us.id, us.status)
+}
