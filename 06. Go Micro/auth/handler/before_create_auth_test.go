@@ -61,9 +61,9 @@ func (c CreateAuthTest) setRequestContext(req *authProto.BeforeCreateAuthRequest
 	req.Email = c.Email
 	req.PhoneNumber = c.PhoneNumber
 	req.Introduction = c.Introduction
-	ctx = metadata.Set(ctx, "XRequestID", c.XRequestId)
-	ctx = metadata.Set(ctx, "Authorization", c.Authorization)
-	ctx = metadata.Set(ctx, "MessageID", c.MessageId)
+	ctx = metadata.Set(ctx, "X-Request-Id", c.XRequestId)
+	ctx = metadata.Set(ctx, "Unique-Authorization", c.Authorization)
+	ctx = metadata.Set(ctx, "Message-Id", c.MessageId)
 }
 
 func (c CreateAuthTest) onExpectMethods() {

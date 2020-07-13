@@ -17,7 +17,6 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 		rsp.SetStatusAndMsg(http.StatusBadRequest, MessageBadRequest)
 		return
 	}
-
 	var md metadata.Metadata
 	var ok bool
 	if md, ok = metadata.FromContext(ctx); !ok || md == nil {
@@ -26,7 +25,7 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 	}
 
 	var xId string
-	if xId, ok = md.Get("XRequestID"); !ok || xId == "" {
+	if xId, ok = md.Get("X-Request-Id"); !ok {
 		rsp.SetStatus(http.StatusForbidden)
 		return
 	}
@@ -37,7 +36,7 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 	}
 
 	var email string
-	if ss, ok := md.Get("Authorization"); ok && ss != "" {
+	if ss, ok := md.Get("Unique-Authorization"); ok && ss != "" {
 		claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
 		if err != nil { rsp.SetStatus(http.StatusForbidden); return }
 		email = claim.Email

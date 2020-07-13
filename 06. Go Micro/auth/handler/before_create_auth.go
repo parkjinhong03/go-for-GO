@@ -28,7 +28,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 	}
 
 	var xId string
-	if xId, ok = md.Get("XRequestID"); !ok || xId == "" {
+	if xId, ok = md.Get("X-Request-Id"); !ok || xId == "" {
 		rsp.SetStatus(http.StatusForbidden)
 		return
 	}
@@ -39,7 +39,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 	}
 
 	var ss string
-	if ss, ok = md.Get("Authorization"); !ok || ss == "" {
+	if ss, ok = md.Get("Unique-Authorization"); !ok || ss == "" {
 		rsp.SetStatus(http.StatusForbidden)
 		return
 	}
@@ -54,7 +54,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 	var mId string
 	switch ctx.Value("env") {
 	case "test":
-		mId, ok = md.Get("MessageID")
+		mId, ok = md.Get("Message-Id")
 		if !ok || len(mId) != 32 { rsp.SetStatus(http.StatusForbidden); return }
 	default:
 		mId = random.GenerateString(32)

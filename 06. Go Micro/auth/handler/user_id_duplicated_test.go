@@ -35,8 +35,8 @@ func (c userIdDuplicatedTest) createTestFromForm() (test userIdDuplicatedTest) {
 
 func (c userIdDuplicatedTest) setRequestContext(req *authProto.UserIdDuplicatedRequest) {
 	req.UserId = c.UserId
-	ctx = metadata.Set(ctx, "XRequestID", c.XRequestId)
-	ctx = metadata.Set(ctx, "Authorization", c.Authorization)
+	ctx = metadata.Set(ctx, "X-Request-Id", c.XRequestId)
+	ctx = metadata.Set(ctx, "Unique-Authorization", c.Authorization)
 }
 
 func (c userIdDuplicatedTest) onExpectMethods() {

@@ -35,8 +35,8 @@ func (e emailDuplicatedTest) createTestFromForm() (test emailDuplicatedTest) {
 
 func (e emailDuplicatedTest) setRequestContext(req *userProto.EmailDuplicatedRequest) {
 	req.Email = e.Email
-	ctx = metadata.Set(ctx, "XRequestID", e.XRequestId)
-	ctx = metadata.Set(ctx, "Authorization", e.Authorization)
+	ctx = metadata.Set(ctx, "X-Request-Id", e.XRequestId)
+	ctx = metadata.Set(ctx, "Unique-Authorization", e.Authorization)
 	return
 }
 

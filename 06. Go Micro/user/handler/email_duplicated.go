@@ -26,7 +26,7 @@ func (u *user) EmailDuplicated(ctx context.Context, req *userProto.EmailDuplicat
 	}
 
 	var xReqId string
-	if xReqId, ok = md.Get("XRequestID"); !ok || xReqId == "" {
+	if xReqId, ok = md.Get("X-Request-Id"); !ok || xReqId == "" {
 		rsp.SetStatus(http.StatusForbidden)
 		return
 	}
@@ -37,7 +37,7 @@ func (u *user) EmailDuplicated(ctx context.Context, req *userProto.EmailDuplicat
 	}
 
 	var userId string
-	if ss, ok := md.Get("Authorization"); ok && ss != "" {
+	if ss, ok := md.Get("Unique-Authorization"); ok && ss != "" {
 		claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
 		if err != nil { rsp.SetStatus(http.StatusForbidden); return }
 		userId = claim.UserId
