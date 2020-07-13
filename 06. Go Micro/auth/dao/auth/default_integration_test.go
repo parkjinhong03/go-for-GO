@@ -194,3 +194,38 @@ func TestDefaultAuthDAOInsertMessage(t *testing.T) {
 	ud.Rollback()
 	_ = ud.db.Close()
 }
+
+func TestDefaultAuthDAOCheckIfUserIdExist(t *testing.T) {
+	setUpEnv()
+
+	inits := []insertAuthTest{
+		{
+			UserId: "jinhong0719",
+			UserPw: "testPw",
+			Status: CreatePending,
+		},
+	}
+
+	for _, init := range inits {
+		_, err := init.Exec()
+		if err != nil { log.Fatal(err) }
+	}
+
+	tests := []checkIfUserIdExist{
+		{
+			UserId:      "jinhong0719",
+			expectExist: true,
+			expectError: nil,
+		}, {
+			UserId:      "jin0710",
+			expectExist: false,
+			expectError: nil,
+		},
+	}
+
+	for _, test := range tests {
+		exist, err := test.Exec()
+		assert.Equalf(t, test.expectExist, exist, "exist assertion error (test case: %v)\n", test)
+		assert.Equalf(t, test.expectError, err, "error assertion error (test case: %v)\n", test)
+	}
+}
