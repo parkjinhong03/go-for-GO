@@ -200,4 +200,7 @@ func TestDefaultUserDAOInsertMessage(t *testing.T) {
 		_, err := test.Exec()
 		assert.Equalf(t, test.ExpectError, err, "error assertion error (test case: %v)\n", test)
 	}
+
+	ud.Rollback()
+	_ = ud.db.Close()
 }
