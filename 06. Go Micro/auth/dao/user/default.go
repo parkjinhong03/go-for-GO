@@ -4,8 +4,10 @@ import (
 	"auth/model"
 	"auth/tool/hash"
 	"auth/tool/parser"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
+	"strings"
 )
 
 type defaultDAO struct {
@@ -19,6 +21,11 @@ func NewDefaultDAO(db *gorm.DB) *defaultDAO {
 }
 
 func (d *defaultDAO) InsertAuth(u *model.Auth) (result *model.Auth, err error) {
+	if !contains([]string{CreatePending, Created, Rejected, Remove}, u.Status) {
+		err = InvalidStatusError
+		return
+	}
+
 	if u.UserPw, err = hash.BcryptGenerate(u.UserPw, bcrypt.DefaultCost); err != nil {
 		err = BcryptGenerateError
 		return
@@ -30,17 +37,34 @@ func (d *defaultDAO) InsertAuth(u *model.Auth) (result *model.Auth, err error) {
 		return
 	}
 
-	code, err := parser.DBErrorParse(r.Error.Error())
-	if err != nil {
-		err = parser.InvalidError
-		return
+	var code int
+	var msg string
+	if me, ok := r.Error.(*mysql.MySQLError); ok {
+		code = int(me.Number)
+		msg = me.Message
 	}
 
+	//code, err := parser.DBErrorParse(r.Error.Error())
+	//if err != nil {
+	//	err = parser.InvalidError
+	//	return
+	//}
+
 	switch code {
-	case IdDuplicateErrorCode:
-		err = IdDuplicateError
+	case DuplicateErrorCode:
+		switch attr := strings.Split(msg, "'")[3]; attr {
+		case KeyUserId:
+			err = UserIdDuplicatedError
+		default:
+			err = r.Error
+		}
 	case DataTooLongErrorCode:
-		err = DataLengthOverError
+		switch attr := strings.Split(msg, "'")[1]; attr {
+		case ColumnUserId:
+			err = UserIdTooLongError
+		default:
+			err = r.Error
+		}
 	default:
 		err = r.Error
 	}
@@ -80,10 +104,10 @@ func (d *defaultDAO) InsertMessage(m *model.ProcessedMessage) (result *model.Pro
 	if err != nil { err = parser.InvalidError; return }
 
 	switch code {
-	case MsgIdDuplicateErrorCode:
+	case DuplicateErrorCode:
 		err = MsgIdDuplicateError
 	case DataTooLongErrorCode:
-		err = DataLengthOverError
+		//err = StatusTooLongError
 	default:
 		err = r.Error
 	}
