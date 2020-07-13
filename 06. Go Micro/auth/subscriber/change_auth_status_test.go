@@ -1,7 +1,7 @@
 package subscriber
 
 import (
-	"auth/dao/user"
+	"auth/dao/auth"
 	"auth/model"
 	authProto "auth/proto/golang/auth"
 	"auth/tool/random"
