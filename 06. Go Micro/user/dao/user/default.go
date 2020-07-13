@@ -1,7 +1,6 @@
 package user
 
 import (
-	"errors"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"strings"
@@ -86,10 +85,10 @@ func (d *defaultDAO) InsertMessage(pm *model.ProcessedMessage) (result *model.Pr
 	if r.Error == nil { return r.Value.(*model.ProcessedMessage), nil }
 
 	var code int
-	var message string
+	var msg string
 	if me, ok := r.Error.(*mysql.MySQLError); ok {
 		code = int(me.Number)
-		message = me.Message
+		msg = me.Message
 	}
 
 	//code, err := parser.ParseDBError(r.Error.Error())
@@ -97,9 +96,21 @@ func (d *defaultDAO) InsertMessage(pm *model.ProcessedMessage) (result *model.Pr
 
 	switch code {
 	case DuplicatedErrorCode:
-		err = MessageDuplicatedError // EmailDuplicatedError??
+		switch attr := strings.Split(msg, "'")[3]; attr {
+		case KeyMsgId:
+			err = MessageDuplicatedError
+		default:
+			err = r.Error
+		}
+	case DataTooLongErrorCode:
+		switch attr := strings.Split(msg, "'")[1]; attr {
+		case ColumnMsgId:
+			err = MessageTooLongError
+		default:
+			err = r.Error
+		}
 	default:
-		err = errors.New(message)
+		err = r.Error
 	}
 
 	return
