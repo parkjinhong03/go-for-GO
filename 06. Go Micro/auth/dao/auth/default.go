@@ -3,7 +3,6 @@ package user
 import (
 	"auth/model"
 	"auth/tool/hash"
-	"auth/tool/parser"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
@@ -93,14 +92,31 @@ func (d *defaultDAO) InsertMessage(m *model.ProcessedMessage) (result *model.Pro
 	r := d.db.Create(m)
 	if r.Error == nil { result = r.Value.(*model.ProcessedMessage); return }
 
-	code, err := parser.DBErrorParse(r.Error.Error())
-	if err != nil { err = parser.InvalidError; return }
+	var code uint16
+	var msg string
+	if me, ok := r.Error.(*mysql.MySQLError); ok {
+		code = me.Number
+		msg = me.Message
+	}
 
-	switch code {
+	//code, err := parser.DBErrorParse(r.Error.Error())
+	//if err != nil { err = parser.InvalidError; return }
+
+	switch int(code) {
 	case DuplicateErrorCode:
-		err = MsgIdDuplicateError
+		switch attr := strings.Split(msg, "'")[3]; attr {
+		case KeyMsgId:
+			err = MsgIdDuplicateError
+		default:
+			err = r.Error
+		}
 	case DataTooLongErrorCode:
-		//err = StatusTooLongError
+		switch attr := strings.Split(msg, "'")[1]; attr {
+		case ColumnMsgId:
+			err = MsgIdTooLongError
+		default:
+			err = r.Error
+		}
 	default:
 		err = r.Error
 	}
