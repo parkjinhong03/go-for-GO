@@ -6,6 +6,12 @@ const(
 )
 
 const (
-	AttributeAuthId = "uix_users_auth_id"
-	AttributeEmail = "uix_users_email"
+	KeyAuthId = "uix_users_auth_id"
+	KeyEmail = "uix_users_email"
+)
+
+const (
+	ColumnName = "name"
+	ColumnEmail = "email"
+	ColumnPhoneNumber = "phone_number"
 )
