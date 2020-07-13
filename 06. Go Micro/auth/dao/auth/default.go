@@ -123,12 +123,15 @@ func (d *defaultDAO) InsertMessage(m *model.ProcessedMessage) (result *model.Pro
 	return
 }
 
-func (d *defaultDAO) CheckIfUserIdExist(id string) (exist bool, err error) {
+func (d *defaultDAO) CheckIfUserIdExist(id string) (bool, error) {
 	auth := new(model.Auth)
-	result := d.db.Where("user_id = ?", id).Find(auth)
-	if err = result.Error; err != nil { return }
-	if result.RowsAffected == 0 { exist = false } else { exist = true }
-	return
+	r := d.db.Where("user_id = ?", id).Find(auth)
+
+	if r.Error == gorm.ErrRecordNotFound {
+		return false, nil
+	}
+
+	return true, r.Error
 }
 
 func (d *defaultDAO) Commit() *gorm.DB {
