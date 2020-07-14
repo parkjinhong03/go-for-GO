@@ -2,6 +2,7 @@ package main
 
 import (
 	"gateway/handler"
+	"gateway/middleware"
 	authProto "gateway/proto/golang/auth"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/validator"
@@ -28,6 +29,7 @@ func main() {
 
 	router := gin.Default()
 	v1 := router.Group("/v1")
+	v1.Use(middleware.Correlation())
 	{
 		v1.GET("/user-ids/duplicate", ah.UserIdDuplicateHandler)
 		v1.POST("/users", ah.UserCreateHandler)
