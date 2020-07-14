@@ -9,19 +9,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
-	"log"
 	"net/http"
 )
 
 type AuthHandler struct {
-	ac authProto.AuthService
+	cli authProto.AuthService
 	validate *validator.Validate
 	registry registry.Registry
 }
 
-func NewAuthHandler(ac authProto.AuthService, validate *validator.Validate, registry registry.Registry) AuthHandler {
+func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate, registry registry.Registry) AuthHandler {
 	return AuthHandler{
-		ac: ac,
+		cli: cli,
 		validate: validate,
 		registry: registry,
 	}
@@ -39,24 +38,23 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
-	v, exist := c.Get("X-Request-Id")
-	xReqId := v.(string)
-
-	if _, err := uuid.Parse(xReqId); err != nil || xReqId == "" || !exist {
+	xReqId := c.GetHeader("X-Request-Id")
+	if _, err := uuid.Parse(xReqId); err != nil {
 		c.Status(http.StatusForbidden)
 		return
 	}
 
 	ctx := context.Background()
 	ctx = metadata.Set(ctx, "X-Request-Id", xReqId)
-	resp, err := ah.ac.UserIdDuplicated(ctx, &authProto.UserIdDuplicatedRequest{
+	if ss := c.GetHeader("Unique-Authorization"); ss != "" {
+		ctx = metadata.Set(ctx, "Unique-Authorization", ss)
+	}
+
+	resp, _ := ah.cli.UserIdDuplicated(ctx, &authProto.UserIdDuplicatedRequest{
 		UserId: body.UserId,
 	})
 
-	if err != nil {
-		log.Fatal(err)
-	}
-	c.Status(int(resp.Status))
+	c.JSON(int(resp.Status), resp)
 }
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
