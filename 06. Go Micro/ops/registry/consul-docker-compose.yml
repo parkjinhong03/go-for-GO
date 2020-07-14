@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  consul:
+    image: consul:latest
+    container_name: consul_server
+    ports:
+      - 8300:8300
+      - 8301:8301
+      - 8500:8500
+      - 8600:8600
