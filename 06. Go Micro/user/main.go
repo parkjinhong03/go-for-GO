@@ -4,7 +4,9 @@ import (
 	"github.com/micro/go-micro/v2"
 	"github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
+	"github.com/micro/go-micro/v2/registry"
 	"github.com/micro/go-plugins/broker/rabbitmq/v2"
+	"github.com/micro/go-plugins/registry/consul/v2"
 	br "user/adapter/broker"
 	"user/adapter/db"
 	"user/dao"
@@ -21,6 +23,7 @@ func main() {
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 	rbMQ := br.ConnRabbitMQ()
+	cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
 
 	h := handler.NewUser(rbMQ, validate, udc)
 	s := subscriber.NewUser(rbMQ, validate, udc)
@@ -29,6 +32,7 @@ func main() {
 		micro.Name("examples.blog.service.user"),
 		micro.Version("latest"),
 		micro.Broker(rbMQ),
+		micro.Registry(cs),
 	)
 
 	brkHandler := func() error {
