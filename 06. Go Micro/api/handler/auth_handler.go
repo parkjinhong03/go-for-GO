@@ -6,6 +6,7 @@ import (
 	authProto "gateway/proto/golang/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
 	"log"
@@ -38,9 +39,12 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
-	xReqId := c.GetHeader("X-Request-Id")
-	if xReqId == "" {
+	v, exist := c.Get("X-Request-Id")
+	xReqId := v.(string)
+
+	if _, err := uuid.Parse(xReqId); err != nil || xReqId == "" || !exist {
 		c.Status(http.StatusForbidden)
+		return
 	}
 
 	ctx := context.Background()

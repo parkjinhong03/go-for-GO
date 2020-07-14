@@ -12,7 +12,7 @@ func Correlation() gin.HandlerFunc {
 			xReqId = uuid.New().String()
 		}
 
-		c.Set("X-Request-ID", uuid.New().String())
+		c.Set("X-Request-Id", uuid.New().String())
 		c.Next()
 	}
 }
