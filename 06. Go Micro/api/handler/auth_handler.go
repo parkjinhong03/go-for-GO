@@ -5,6 +5,8 @@ import (
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/jwt"
+	_ "github.com/afex/hystrix-go/hystrix"
+	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -17,13 +19,16 @@ type AuthHandler struct {
 	cli authProto.AuthService
 	validate *validator.Validate
 	registry registry.Registry
+	breaker *breaker.Breaker
 }
 
-func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate, registry registry.Registry) AuthHandler {
+func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate,
+	registry registry.Registry, breaker *breaker.Breaker) AuthHandler {
 	return AuthHandler{
 		cli: cli,
 		validate: validate,
 		registry: registry,
+		breaker: breaker,
 	}
 }
 
