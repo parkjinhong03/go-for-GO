@@ -10,9 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/micro/go-micro/v2/client"
+	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
 	"net/http"
+	"sync"
 )
 
 type AuthHandler struct {
@@ -20,15 +23,17 @@ type AuthHandler struct {
 	validate *validator.Validate
 	registry registry.Registry
 	breaker *breaker.Breaker
+	mutex sync.Mutex
 }
 
 func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate,
-	registry registry.Registry, breaker *breaker.Breaker) AuthHandler {
+	registry registry.Registry, breaker *breaker.Breaker, mutex sync.Mutex) AuthHandler {
 	return AuthHandler{
 		cli: cli,
 		validate: validate,
 		registry: registry,
 		breaker: breaker,
+		mutex: mutex,
 	}
 }
 
@@ -56,13 +61,38 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		ctx = metadata.Set(ctx, "Unique-Authorization", ss)
 	}
 
-	resp, _ := ah.cli.UserIdDuplicated(ctx, &authProto.UserIdDuplicatedRequest{
-		UserId: body.UserId,
-	})
-	// timeout 처리
+	resp := new(authProto.UserIdDuplicatedResponse)
+	reqFunc := func() (err error) {
+		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		if resp, err = ah.cli.UserIdDuplicated(ctx, &authProto.UserIdDuplicatedRequest{
+			UserId: body.UserId,
+		}, opts...); err != nil {
+			return
+		}
+		if resp.Status == http.StatusInternalServerError {
+			err = errors.InternalServerError("go.micro.client", "internal server error")
+		}
+		return
+	}
 
-	c.JSON(int(resp.Status), resp)
-	return
+	var err error
+	switch err = ah.breaker.Run(reqFunc); err {
+	case nil:
+		notified = false
+		c.JSON(int(resp.Status), resp)
+	case breaker.ErrBreakerOpen:
+		c.Status(http.StatusServiceUnavailable)
+		if notified == true { break }
+		// 처음으로 열린 차단기라면, 알림 서비스 실행
+		notified = true
+	default:
+		err, ok := err.(*errors.Error)
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Status(int(err.Code))
+	}
 }
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
@@ -93,15 +123,43 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", xReqId)
 	ctx = metadata.Set(ctx, "Unique-Authorization", ss)
 
-	resp, _ := ah.cli.BeforeCreateAuth(ctx, &authProto.BeforeCreateAuthRequest{
-		UserId:       body.UserId,
-		UserPw:       body.UserPw,
-		Name:         body.Name,
-		PhoneNumber:  body.PhoneNumber,
-		Email:        body.Email,
-		Introduction: body.Introduction,
-	})
-	// timeout 처리
+	resp := new(authProto.BeforeCreateAuthResponse)
+	reqFunc := func() (err error) {
+		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		if resp, err = ah.cli.BeforeCreateAuth(ctx, &authProto.BeforeCreateAuthRequest{
+			UserId:       body.UserId,
+			UserPw:       body.UserPw,
+			Name:         body.Name,
+			PhoneNumber:  body.PhoneNumber,
+			Email:        body.Email,
+			Introduction: body.Introduction,
+		}, opts...); err != nil {
+			return
+		}
+		if resp.Status == http.StatusInternalServerError {
+			err = errors.InternalServerError("go.micro.client", "internal server error")
+		}
+		return
+	}
+
+	var err error
+	switch err = ah.breaker.Run(reqFunc); err {
+	case nil:
+		notified = false
+		c.JSON(int(resp.Status), resp)
+	case breaker.ErrBreakerOpen:
+		c.Status(http.StatusServiceUnavailable)
+		if notified == true { break }
+		// 처음으로 열린 차단기라면, 알림 서비스 실행
+		notified = true
+	default:
+		err, ok := err.(*errors.Error)
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Status(int(err.Code))
+	}
 
 	c.JSON(int(resp.Status), resp)
 	return
