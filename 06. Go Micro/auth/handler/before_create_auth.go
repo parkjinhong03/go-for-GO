@@ -83,11 +83,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 		Introduction: req.Introduction,
 	}
 
-	body, err := json.Marshal(msg)
-	if err != nil {
-		rsp.SetStatus(http.StatusInternalServerError)
-	}
-
+	body, _ := json.Marshal(msg)
 	if err = e.mq.Publish(topic.CreateAuthEventTopic, &broker.Message{
 		Header: header,
 		Body:   body,
