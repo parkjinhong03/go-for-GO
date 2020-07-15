@@ -4,6 +4,7 @@ import (
 	"context"
 	"gateway/entity"
 	userProto "gateway/proto/golang/user"
+	"gateway/tool/conf"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -13,33 +14,39 @@ import (
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
 	"net/http"
+	"sync"
 )
 
 type UserHandler struct {
-	cli userProto.UserService
+	cli      userProto.UserService
 	validate *validator.Validate
 	registry registry.Registry
-	breaker *breaker.Breaker
+	breaker  []*breaker.Breaker
+	mutex    sync.Mutex
+	notified []bool
 }
 
-func NewUserHandler(cli userProto.UserService, validate *validator.Validate,
-	registry registry.Registry, breaker *breaker.Breaker) UserHandler {
+func NewUserHandler(cli userProto.UserService, validate *validator.Validate, registry registry.Registry, bc conf.BreakerConfig) UserHandler {
+	bk := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
+
 	return UserHandler{
-		cli: cli,
+		cli:      cli,
 		validate: validate,
 		registry: registry,
-		breaker: breaker,
+		breaker:  []*breaker.Breaker{bk},
+		mutex:    sync.Mutex{},
+		notified: []bool{false},
 	}
 }
 
-func (u UserHandler) EmailDuplicateHandler(c *gin.Context) {
+func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	var body entity.EmailDuplicate
 	if err := c.BindJSON(&body); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
 
-	if err := u.validate.Struct(&body); err != nil {
+	if err := uh.validate.Struct(&body); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -59,7 +66,7 @@ func (u UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	resp := new(userProto.EmailDuplicatedResponse)
 	reqFunc := func() (err error) {
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-		if resp, err = u.cli.EmailDuplicated(ctx, &userProto.EmailDuplicatedRequest{
+		if resp, err = uh.cli.EmailDuplicated(ctx, &userProto.EmailDuplicatedRequest{
 			Email: body.Email,
 		}, opts...); err != nil {
 			return
@@ -71,12 +78,15 @@ func (u UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	}
 
 	var err error
-	switch err = u.breaker.Run(reqFunc); err {
+	switch err = uh.breaker[emailDuplicateIndex].Run(reqFunc); err {
 	case nil:
+		uh.notified[emailDuplicateIndex] = false
 		c.JSON(int(resp.Status), resp)
 	case breaker.ErrBreakerOpen:
 		c.Status(http.StatusServiceUnavailable)
+		if uh.notified[emailDuplicateIndex] == true { break }
 		// 처음으로 열린 차단기라면, 알림 서비스 실행
+		uh.notified[emailDuplicateIndex] = true
 	default:
 		err, ok := err.(*errors.Error)
 		if !ok {

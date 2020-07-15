@@ -4,6 +4,7 @@ import (
 	"context"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
+	"gateway/tool/conf"
 	"gateway/tool/jwt"
 	_ "github.com/afex/hystrix-go/hystrix"
 	"github.com/eapache/go-resiliency/breaker"
@@ -19,21 +20,25 @@ import (
 )
 
 type AuthHandler struct {
-	cli authProto.AuthService
+	cli      authProto.AuthService
 	validate *validator.Validate
 	registry registry.Registry
-	breaker *breaker.Breaker
-	mutex sync.Mutex
+	breaker  []*breaker.Breaker
+	mutex    sync.Mutex
+	notified []bool
 }
 
-func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate,
-	registry registry.Registry, breaker *breaker.Breaker, mutex sync.Mutex) AuthHandler {
+func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate, registry registry.Registry, bc conf.BreakerConfig) AuthHandler {
+	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
+	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
+
 	return AuthHandler{
-		cli: cli,
+		cli:      cli,
 		validate: validate,
 		registry: registry,
-		breaker: breaker,
-		mutex: mutex,
+		breaker:  []*breaker.Breaker{bk1, bk2},
+		mutex:    sync.Mutex{},
+		notified: []bool{false, false},
 	}
 }
 
@@ -76,15 +81,15 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	}
 
 	var err error
-	switch err = ah.breaker.Run(reqFunc); err {
+	switch err = ah.breaker[userIdDuplicateIndex].Run(reqFunc); err {
 	case nil:
-		notified = false
+		ah.notified[userIdDuplicateIndex] = false
 		c.JSON(int(resp.Status), resp)
 	case breaker.ErrBreakerOpen:
 		c.Status(http.StatusServiceUnavailable)
-		if notified == true { break }
+		if ah.notified[userIdDuplicateIndex] == true { break }
 		// 처음으로 열린 차단기라면, 알림 서비스 실행
-		notified = true
+		ah.notified[userIdDuplicateIndex] = true
 	default:
 		err, ok := err.(*errors.Error)
 		if !ok {
@@ -143,15 +148,15 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	}
 
 	var err error
-	switch err = ah.breaker.Run(reqFunc); err {
+	switch err = ah.breaker[userCreateIndex].Run(reqFunc); err {
 	case nil:
-		notified = false
+		ah.notified[userCreateIndex] = false
 		c.JSON(int(resp.Status), resp)
 	case breaker.ErrBreakerOpen:
 		c.Status(http.StatusServiceUnavailable)
-		if notified == true { break }
+		if ah.notified[userCreateIndex] == true { break }
 		// 처음으로 열린 차단기라면, 알림 서비스 실행
-		notified = true
+		ah.notified[userCreateIndex] = true
 	default:
 		err, ok := err.(*errors.Error)
 		if !ok {
@@ -161,6 +166,5 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		c.Status(int(err.Code))
 	}
 
-	c.JSON(int(resp.Status), resp)
 	return
 }
