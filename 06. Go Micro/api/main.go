@@ -13,6 +13,7 @@ import (
 	"github.com/micro/go-micro/v2/registry"
 	"github.com/micro/go-plugins/registry/consul/v2"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -27,13 +28,14 @@ func main() {
 	v, err := validator.New()
 	if err != nil { log.Fatal(err) }
 	bk := breaker.New(DefaultErrorThreshold, DefaultSuccessThreshold, DefaultTimeout)
+	mtx := sync.Mutex{}
 
 	opts := []client.Option{client.Registry(cs)}
 	ac := authProto.NewAuthService("examples.blog.service.auth", grpc.NewClient(opts...))
 	uc := userProto.NewUserService("examples.blog.service.user", grpc.NewClient(opts...))
 
-	ah := handler.NewAuthHandler(ac, v, cs, bk)
-	uh := handler.NewUserHandler(uc, v, cs, bk)
+	ah := handler.NewAuthHandler(ac, v, cs, bk, mtx)
+	uh := handler.NewUserHandler(uc, v, cs, bk, mtx)
 
 	router := gin.Default()
 	v1 := router.Group("/v1")
