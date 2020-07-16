@@ -15,12 +15,14 @@ import (
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"sync"
 )
 
 type AuthHandler struct {
 	cli      authProto.AuthService
+	logger 	 *logrus.Logger
 	validate *validator.Validate
 	registry registry.Registry
 	breaker  []*breaker.Breaker
@@ -28,12 +30,15 @@ type AuthHandler struct {
 	notified []bool
 }
 
-func NewAuthHandler(cli authProto.AuthService, validate *validator.Validate, registry registry.Registry, bc conf.BreakerConfig) AuthHandler {
+func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
+	registry registry.Registry, bc conf.BreakerConfig) AuthHandler {
+
 	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 
 	return AuthHandler{
 		cli:      cli,
+		logger:   logger,
 		validate: validate,
 		registry: registry,
 		breaker:  []*breaker.Breaker{bk1, bk2},

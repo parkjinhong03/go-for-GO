@@ -13,12 +13,14 @@ import (
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"sync"
 )
 
 type UserHandler struct {
 	cli      userProto.UserService
+	logger 	 *logrus.Logger
 	validate *validator.Validate
 	registry registry.Registry
 	breaker  []*breaker.Breaker
@@ -26,11 +28,14 @@ type UserHandler struct {
 	notified []bool
 }
 
-func NewUserHandler(cli userProto.UserService, validate *validator.Validate, registry registry.Registry, bc conf.BreakerConfig) UserHandler {
+func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
+	registry registry.Registry, bc conf.BreakerConfig) UserHandler {
+
 	bk := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 
 	return UserHandler{
 		cli:      cli,
+		logger:   logger,
 		validate: validate,
 		registry: registry,
 		breaker:  []*breaker.Breaker{bk},
