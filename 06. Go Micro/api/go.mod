@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5
+	github.com/bshuster-repo/logrus-logstash-hook v1.0.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/eapache/go-resiliency v1.1.0
 	github.com/gin-gonic/gin v1.6.3
@@ -12,5 +13,6 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/micro/go-micro/v2 v2.9.1
 	github.com/micro/go-plugins/registry/consul/v2 v2.9.1
+	github.com/sirupsen/logrus v1.4.2
 	google.golang.org/protobuf v1.22.0
 )
