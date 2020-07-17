@@ -2,10 +2,12 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
 	"gateway/tool/jwt"
+	"gateway/tool/serializer"
 	_ "github.com/afex/hystrix-go/hystrix"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
@@ -28,6 +30,7 @@ type AuthHandler struct {
 	breaker  []*breaker.Breaker
 	mutex    sync.Mutex
 	notified []bool
+	toLogrus serializer.ToLogrusField
 }
 
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
@@ -48,20 +51,28 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 }
 
 func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
+	entry := ah.logger.WithFields(logrus.Fields{
+		"group":   "handler",
+		"segment": "userIdDuplicate",
+	})
+
 	var body entity.UserIdDuplicate
 	if err := c.BindJSON(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
 		return
 	}
 
 	if err := ah.validate.Struct(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
 		return
 	}
 
 	xReqId := c.GetHeader("X-Request-Id")
 	if _, err := uuid.Parse(xReqId); err != nil {
 		c.Status(http.StatusForbidden)
+		ah.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
 		return
 	}
 
@@ -88,21 +99,31 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var err error
 	switch err = ah.breaker[userIdDuplicateIndex].Run(reqFunc); err {
 	case nil:
-		ah.notified[userIdDuplicateIndex] = false
 		c.JSON(int(resp.Status), resp)
+
+		ah.notified[userIdDuplicateIndex] = false
+		ah.setEntryField(entry, c.Request, body, int(resp.Status), err).Info()
+
 	case breaker.ErrBreakerOpen:
 		c.Status(http.StatusServiceUnavailable)
-		if ah.notified[userIdDuplicateIndex] == true { break }
-		// 처음으로 열린 차단기라면, 알림 서비스 실행
-		ah.notified[userIdDuplicateIndex] = true
-	default:
-		err, ok := err.(*errors.Error)
-		if !ok {
-			c.Status(http.StatusInternalServerError)
-			return
+
+		if ah.notified[userIdDuplicateIndex] == false {
+			// 처음으로 열린 차단기라면, 알림 서비스 실행
+			ah.notified[userIdDuplicateIndex] = true
 		}
-		c.Status(int(err.Code))
+
+		ah.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
+	default:
+		var code = http.StatusInternalServerError
+		err, ok := err.(*errors.Error)
+		if ok {
+			code = int(err.Code)
+		}
+		c.Status(code)
+
+		ah.setEntryField(entry, c.Request, body, code, err).Warn()
 	}
+	return
 }
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
@@ -172,4 +193,22 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	}
 
 	return
+}
+
+func (ah AuthHandler) setEntryField(entry *logrus.Entry, r *http.Request, body entity.UserIdDuplicate, outcome int, err error) *logrus.Entry {
+	var errStr string
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		b = []byte{}
+	}
+
+	return entry.WithFields(logrus.Fields{
+		"json":    string(b),
+		"outcome": outcome,
+		"error":   errStr,
+	}).WithFields(ah.toLogrus.Request(r))
 }
