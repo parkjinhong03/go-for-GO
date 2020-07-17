@@ -13,6 +13,6 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/micro/go-micro/v2 v2.9.1
 	github.com/micro/go-plugins/registry/consul/v2 v2.9.1
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.6.0
 	google.golang.org/protobuf v1.22.0
 )
