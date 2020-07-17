@@ -1,18 +1,14 @@
 filebeat.inputs:
   - input_type: log
+    enable: true
     paths:
-      - var/log/gateway/*.log
-    exclude_lines: ["^DEBUG"]
-    include_lines: ["^INFO", "^WARN", "^ERROR", "^FATAL"]
+      - /usr/share/filebeat/log/gateway/*.log
     tags: ["api_gateway"]
-    fields:
-      env: dev
-    # multiline.pattern: '^[[:space:]]'
-    scan_frequency: 5s
+    scan_frequency: 3s
 
 output.logstash:
   enable: true
-  hosts: ["localhost:5044"]
+  hosts: ["logstash:5044"]
   loadbalance: true
 
 filebeat.shutdown_timeout: 10s
