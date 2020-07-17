@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"gateway/entity"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
+	"gateway/tool/serializer"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -26,6 +28,7 @@ type UserHandler struct {
 	breaker  []*breaker.Breaker
 	mutex    sync.Mutex
 	notified []bool
+	toLogrus serializer.ToLogrusField
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
@@ -41,24 +44,33 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		breaker:  []*breaker.Breaker{bk},
 		mutex:    sync.Mutex{},
 		notified: []bool{false},
+		toLogrus: serializer.ToLogrusField{},
 	}
 }
 
 func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
+	entry := uh.logger.WithFields(logrus.Fields{
+		"group":   "handler",
+		"segment": "emailDuplicate",
+	})
+
 	var body entity.EmailDuplicate
 	if err := c.BindJSON(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		uh.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
 		return
 	}
 
 	if err := uh.validate.Struct(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		uh.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
 		return
 	}
 
 	xReqId := c.GetHeader("X-Request-Id")
 	if _, err := uuid.Parse(xReqId); err != nil {
 		c.Status(http.StatusForbidden)
+		uh.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
 		return
 	}
 
@@ -87,17 +99,41 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	case nil:
 		uh.notified[emailDuplicateIndex] = false
 		c.JSON(int(resp.Status), resp)
+
+		uh.setEntryField(entry, c.Request, body, int(resp.Status), err).Info()
 	case breaker.ErrBreakerOpen:
 		c.Status(http.StatusServiceUnavailable)
+
+		uh.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
 		if uh.notified[emailDuplicateIndex] == true { break }
 		// 처음으로 열린 차단기라면, 알림 서비스 실행
 		uh.notified[emailDuplicateIndex] = true
 	default:
+		var code = http.StatusServiceUnavailable
 		err, ok := err.(*errors.Error)
-		if !ok {
-			c.Status(http.StatusInternalServerError)
-			return
+		if ok {
+			code = int(err.Code)
 		}
-		c.Status(int(err.Code))
+		c.Status(code)
+
+		uh.setEntryField(entry, c.Request, body, code, err).Warn()
 	}
+}
+
+func (uh UserHandler) setEntryField(entry *logrus.Entry, r *http.Request, body interface{}, outcome int, err error) *logrus.Entry {
+	var errStr string
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		b = []byte{}
+	}
+
+	return entry.WithFields(logrus.Fields{
+		"json":    string(b),
+		"outcome": outcome,
+		"error":   errStr,
+	}).WithFields(uh.toLogrus.Request(r))
 }
