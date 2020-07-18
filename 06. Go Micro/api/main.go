@@ -2,7 +2,7 @@ package main
 
 import (
 	"gateway/handler"
-	"gateway/middleware"
+	md "gateway/middleware"
 	authProto "gateway/proto/golang/auth"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
@@ -102,23 +102,20 @@ func main() {
 	ah := handler.NewAuthHandler(ac, al, v, cs, bc)
 	uh := handler.NewUserHandler(uc, ul, v, cs, bc)
 
-	// 미들웨어 객체 생성
-	md := middleware.New(ajc, ujc)
-
 	// 핸들러 라우팅
 	router := gin.Default()
 	v1 := router.Group("/v1")
 	v1.Use(md.Correlator())
 
 	ar := v1.Group("/")
-	ar.Use(md.AuthTracer())
+	ar.Use(md.Tracer(ajc))
 	{
 		ar.GET("/user-ids/duplicate", ah.UserIdDuplicateHandler)
 		ar.POST("/users", ah.UserCreateHandler)
 	}
 
 	ur := v1.Group("/")
-	ur.Use(md.UserTracer())
+	ur.Use(md.Tracer(ujc))
 	{
 		ur.GET("/emails/duplicate", uh.EmailDuplicateHandler)
 	}
