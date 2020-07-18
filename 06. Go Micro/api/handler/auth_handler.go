@@ -73,7 +73,6 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
-	//xid := c.GetHeader("X-Request-Id")
 	tr := v.(opentracing.Tracer)
 	ps := tr.StartSpan(c.Request.URL.Path)
 	ps.SetTag("X-Request-Id", c.GetHeader("X-Request-Id")).SetTag("segment", "userIdDuplicate")
@@ -100,13 +99,24 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", c.GetHeader("X-Request-Id"))
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	cs := tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", c.GetHeader("X-Request-Id"))
-	opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-	req := &authProto.UserIdDuplicatedRequest{
-		UserId: body.UserId,
+	var cs opentracing.Span
+	var resp *authProto.UserIdDuplicatedResponse
+	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
+		cs = tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", c.GetHeader("X-Request-Id"))
+		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		req := &authProto.UserIdDuplicatedRequest{UserId: body.UserId}
+		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
+		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		return
+	})
+
+	if err == breaker.ErrBreakerOpen {
+		c.Status(http.StatusServiceUnavailable)
+		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), http.StatusServiceUnavailable)
+		ah.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
+		ps.SetTag("status", http.StatusServiceUnavailable).LogFields(log.Error(err))
+		return
 	}
-	resp, err := ah.cli.UserIdDuplicated(ctx, req, opts...)
-	cs.LogFields(log.Object("request", req), log.Object("response", resp))
 
 	if err != nil {
 		var code = http.StatusInternalServerError
@@ -129,34 +139,6 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	ps.SetTag("status", resp.Status)
 	cs.Finish()
 
-	////cs := tr.StartSpan("callRpcHandler", opentracing.ChildOf(ps.Context()))
-	//switch err = ah.breaker[userIdDuplicateIndex].Run(reqFunc); err {
-	//case nil:
-	//	c.JSON(int(resp.Status), resp)
-	//
-	//	ah.notified[userIdDuplicateIndex] = false
-	//	ah.setEntryField(entry, c.Request, body, int(resp.Status), err).Info()
-	//
-	//case breaker.ErrBreakerOpen:
-	//	c.Status(http.StatusServiceUnavailable)
-	//
-	//	if ah.notified[userIdDuplicateIndex] == false {
-	//		// 처음으로 열린 차단기라면, 알림 서비스 실행
-	//		ah.notified[userIdDuplicateIndex] = true
-	//	}
-	//
-	//	ah.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
-	//default:
-	//	var code = http.StatusInternalServerError
-	//	err, ok := err.(*errors.Error)
-	//	if ok {
-	//		code = int(err.Code)
-	//	}
-	//	c.Status(code)
-	//
-	//	ah.setEntryField(entry, c.Request, body, code, err).Warn()
-	//}
-
 	return
 }
 
@@ -165,6 +147,7 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		"group":   "handler",
 		"segment": "userCreate",
 	})
+
 
 	var body entity.UserCreate
 	if err := c.BindJSON(&body); err != nil {
