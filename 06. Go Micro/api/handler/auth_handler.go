@@ -12,7 +12,6 @@ import (
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/client"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
@@ -143,89 +142,110 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 }
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
-	entry := ah.logger.WithFields(logrus.Fields{
-		"group":   "handler",
-		"segment": "userCreate",
-	})
-
-
 	var body entity.UserCreate
+	entry := ah.logger.WithField("segment", "userCreate")
+
+	if v, ok := c.Get("error"); ok {
+		var code int32 = http.StatusInternalServerError
+		c.Status(int(code))
+		entry = entry.WithField("group", "middleware")
+		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middlewares, err: %v\n", v.(error)), code)
+		ah.setEntryField(entry, c.Request, body, int(code), err).Warn()
+		return
+	}
+
+	v, ok := c.Get("tracer")
+	if !ok {
+		var code = http.StatusInternalServerError
+		c.Status(code)
+		entry = entry.WithField("group", "middleware")
+		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
+		ah.setEntryField(entry, c.Request, body, code, err)
+		return
+	}
+
+	xid := c.GetHeader("X-Request-Id")
+	tr := v.(opentracing.Tracer)
+	ps := tr.StartSpan(c.Request.URL.Path)
+	defer ps.Finish()
+	ps.SetTag("X-Request-Id", xid).SetTag("segment", "userCreate")
+	entry = entry.WithField("group", "handler")
+
 	if err := c.BindJSON(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		err := errors.New(apiGateway, err.Error(), http.StatusBadRequest)
 		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
+		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
 		return
 	}
 
 	if err := ah.validate.Struct(&body); err != nil {
 		c.Status(http.StatusBadRequest)
+		err := errors.New(apiGateway, err.Error(), http.StatusBadRequest)
 		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		return
-	}
-
-	xReqId := c.GetHeader("X-Request-Id")
-	if _, err := uuid.Parse(xReqId); err != nil {
-		c.Status(http.StatusForbidden)
-		ah.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
+		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
 		return
 	}
 
 	ss := c.GetHeader("Unique-Authorization")
-	if _, err := jwt.ParseDuplicateCertClaimFromJWT(ss); err != nil || ss == "" {
+	if _, err := jwt.ParseDuplicateCertClaimFromJWT(ss); err != nil {
 		c.Status(http.StatusForbidden)
+		err := errors.New(apiGateway, err.Error(), http.StatusForbidden)
 		ah.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
+		ps.SetTag("status", http.StatusForbidden).LogFields(log.Error(err))
 		return
 	}
 
 	ctx := context.Background()
-	ctx = metadata.Set(ctx, "X-Request-Id", xReqId)
+	ctx = metadata.Set(ctx, "X-Request-Id", xid)
 	ctx = metadata.Set(ctx, "Unique-Authorization", ss)
 
-	resp := new(authProto.BeforeCreateAuthResponse)
-	reqFunc := func() (err error) {
+	var cs opentracing.Span
+	var resp *authProto.BeforeCreateAuthResponse
+	err := ah.breaker[userCreateIndex].Run(func() (err error) {
+		cs = tr.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-		if resp, err = ah.cli.BeforeCreateAuth(ctx, &authProto.BeforeCreateAuthRequest{
+		req := &authProto.BeforeCreateAuthRequest{
 			UserId:       body.UserId,
 			UserPw:       body.UserPw,
 			Name:         body.Name,
 			PhoneNumber:  body.PhoneNumber,
 			Email:        body.Email,
 			Introduction: body.Introduction,
-		}, opts...); err != nil {
-			return
 		}
-		if resp.Status == http.StatusInternalServerError {
-			err = errors.InternalServerError("go.micro.client", "internal server error")
-		}
+		resp, err = ah.cli.BeforeCreateAuth(ctx, req, opts...)
+		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		return
+	})
+
+	if err == breaker.ErrBreakerOpen {
+		var code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		ah.setEntryField(entry, c.Request, body, code, err).Error()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
-	var err error
-	switch err = ah.breaker[userCreateIndex].Run(reqFunc); err {
-	case nil:
-		c.JSON(int(resp.Status), resp)
-
-		ah.notified[userCreateIndex] = false
-		ah.setEntryField(entry, c.Request, body, int(resp.Status), err).Info()
-	case breaker.ErrBreakerOpen:
-		c.Status(http.StatusServiceUnavailable)
-
-		ah.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
-		if ah.notified[userCreateIndex] == false {
-			// 처음으로 열린 차단기라면, 알림 서비스 실행
-			ah.notified[userCreateIndex] = true
-		}
-		// 블록된 요청에 대한 추가 작업 실행
-	default:
+	if err != nil {
 		var code = http.StatusInternalServerError
-		err, ok := err.(*errors.Error)
-		if ok {
-			code = int(err.Code)
-		}
+		if err, ok := err.(*errors.Error); ok { code = int(err.Code) }
 		c.Status(code)
-
-		ah.setEntryField(entry, c.Request, body, code, err).Warn()
+		ah.setEntryField(entry, c.Request, body, code, err).Error()
+		ps.SetTag("status", http.StatusInternalServerError)
+		cs.Finish()
+		return
 	}
 
+	c.JSON(int(resp.Status), resp)
+	entry = ah.setEntryField(entry, c.Request, body, int(resp.Status), err)
+	if resp.Status == http.StatusInternalServerError {
+		entry.Warn()
+	} else {
+		entry.Info()
+	}
+	ps.SetTag("status", resp.Status)
+	cs.Finish()
 	return
 }
 
