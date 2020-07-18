@@ -12,3 +12,9 @@ const (
 	userIdDuplicateIndex = 0
 	userCreateIndex = 1
 )
+
+const (
+	apiGateway = "examples.blog.api.gateWay"
+	authClient = "examples.blog.client.auth"
+	userClient = "examples.blog.client.user"
+)
