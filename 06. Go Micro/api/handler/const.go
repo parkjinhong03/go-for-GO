@@ -18,3 +18,9 @@ const (
 	authClient = "examples.blog.client.auth"
 	userClient = "examples.blog.client.user"
 )
+
+const (
+	userIdDuplicate = "examples.blog.service.auth.UserIdDuplicate"
+	beforeCreateAuth = "examples.blog.service.auth.BeforeCreateAuth"
+	emailDuplicate = "examples.blog.service.user.EmailDuplicate"
+)
