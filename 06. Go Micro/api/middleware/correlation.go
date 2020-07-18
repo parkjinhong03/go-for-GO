@@ -5,14 +5,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func Correlation() gin.HandlerFunc {
+func (m Middleware) Correlation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var xReqId = c.GetHeader("X-Request-Id")
-		if xReqId == "" {
-			xReqId = uuid.New().String()
-		}
-
+		xReqId := uuid.New().String()
 		c.Request.Header.Set("X-Request-Id", xReqId)
+		c.Header("X-Request-Id", xReqId)
 		c.Next()
 	}
 }
