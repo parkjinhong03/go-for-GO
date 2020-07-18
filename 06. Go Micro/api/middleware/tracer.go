@@ -7,31 +7,13 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
-func (m Middleware) AuthTracer() gin.HandlerFunc {
+func Tracer(jc jaegercfg.Configuration) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tr, cl, err := m.ajc.NewTracer(
+		tr, cl, err := jc.NewTracer(
 			jaegercfg.Logger(jaegerlog.StdLogger),
 		)
 		if err != nil {
 			c.Set("error", err)
-			c.Next()
-			return
-		}
-		defer func() { _ = cl.Close() } ()
-
-		opentracing.SetGlobalTracer(tr)
-		c.Set("tracer", tr)
-		c.Next()
-	}
-}
-
-func (m Middleware) UserTracer() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tr, cl, err := m.ujc.NewTracer(
-			jaegercfg.Logger(jaegerlog.StdLogger),
-		)
-		if err != nil {
-			c.Set("middleware_err", err)
 			c.Next()
 			return
 		}
