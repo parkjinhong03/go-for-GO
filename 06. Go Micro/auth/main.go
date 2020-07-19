@@ -45,26 +45,8 @@ func main() {
 		{Key: "host_ip", Value: getLocalAddr().IP},
 		{Key: "service", Value: "authService"},
 	}}
-	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
-		{Key: "environment", Value: getEnvironment()},
-		{Key: "host_ip", Value: getLocalAddr().IP},
-		{Key: "service", Value: "userService"},
-	}}
-
-	atr, c, err := ajc.NewTracer(
-		jaegercfg.Logger(jaegerlog.StdLogger),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() { _ = c.Close() }()
-
-	utr, c, err := ujc.NewTracer(
-		jaegercfg.Logger(jaegerlog.StdLogger),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
+	if err != nil {log.Fatal(err)}
 	defer func() { _ = c.Close() }()
 
 	// 서비스 생성
@@ -78,7 +60,7 @@ func main() {
 	// 이벤트 및 rpc 핸들러 객체 생성
 	s := subscriber.NewAuth(rbMQ, adc, validate, atr)
 	// mq := service.Options().Broker
-	h := handler.NewAuth(rbMQ, adc, validate, utr)
+	h := handler.NewAuth(rbMQ, adc, validate, atr)
 
 	// Broker 초기화 핸들러 함수 생성
 	brkHandleFunc := func() (err error) {
