@@ -2,19 +2,20 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"gateway/entity"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
-	"gateway/tool/serializer"
+	"gateway/tool/logrusfield"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/client"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"sync"
@@ -28,7 +29,6 @@ type UserHandler struct {
 	breaker  []*breaker.Breaker
 	mutex    sync.Mutex
 	notified []bool
-	toLogrus serializer.ToLogrusField
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
@@ -44,96 +44,105 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		breaker:  []*breaker.Breaker{bk},
 		mutex:    sync.Mutex{},
 		notified: []bool{false},
-		toLogrus: serializer.ToLogrusField{},
 	}
 }
 
 func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
-	entry := uh.logger.WithFields(logrus.Fields{
-		"group":   "handler",
-		"segment": "emailDuplicate",
-	})
-
 	var body entity.EmailDuplicate
+	var code int
+	xid := c.GetHeader("X-Request-Id")
+	entry := uh.logger.WithField("segment", "emailDuplicate")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
+
+	if v, ok := c.Get("error"); ok {
+		code = http.StatusInternalServerError
+		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middleware, err: %v", v.(error)), int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
+		return
+	}
+
+	v, ok := c.Get("tracer")
+	if !ok {
+		code = http.StatusInternalServerError
+		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
+		return
+	}
+
+	tr := v.(opentracing.Tracer)
+	ps := tr.StartSpan(c.Request.URL.Path)
+	ps.SetTag("X-Request-Id", xid).SetTag("segment", "emailDuplicate")
+	defer ps.Finish()
+	entry = entry.WithField("group", "handler")
+
 	if err := c.BindJSON(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		uh.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
+		code = http.StatusBadRequest
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	if err := uh.validate.Struct(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		uh.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		return
-	}
-
-	xReqId := c.GetHeader("X-Request-Id")
-	if _, err := uuid.Parse(xReqId); err != nil {
-		c.Status(http.StatusForbidden)
-		uh.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
+		code = http.StatusBadRequest
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	ctx := context.Background()
-	ctx = metadata.Set(ctx, "X-Request-Id", xReqId)
-	if ss := c.GetHeader("Unique-Authorization"); ss != "" {
-		ctx = metadata.Set(ctx, "Unique-Authorization", ss)
-	}
+	ctx = metadata.Set(ctx, "X-Request-Id", xid)
+	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	resp := new(userProto.EmailDuplicatedResponse)
-	reqFunc := func() (err error) {
+	var cs opentracing.Span
+	var resp *userProto.EmailDuplicatedResponse
+	err := uh.breaker[emailDuplicateIndex].Run(func() (err error) {
+		cs = tr.StartSpan(emailDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		req := &userProto.EmailDuplicatedRequest{Email: body.Email}
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-		if resp, err = uh.cli.EmailDuplicated(ctx, &userProto.EmailDuplicatedRequest{
-			Email: body.Email,
-		}, opts...); err != nil {
-			return
-		}
-		if resp.Status == http.StatusInternalServerError {
-			err = errors.InternalServerError("go.micro.client", "internal server error")
-		}
+		resp, err = uh.cli.EmailDuplicated(ctx, req, opts...)
+		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		return
+	})
+
+	if err == breaker.ErrBreakerOpen {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
-	var err error
-	switch err = uh.breaker[emailDuplicateIndex].Run(reqFunc); err {
-	case nil:
-		uh.notified[emailDuplicateIndex] = false
-		c.JSON(int(resp.Status), resp)
-
-		uh.setEntryField(entry, c.Request, body, int(resp.Status), err).Info()
-	case breaker.ErrBreakerOpen:
-		c.Status(http.StatusServiceUnavailable)
-
-		uh.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
-		if uh.notified[emailDuplicateIndex] == true { break }
-		// 처음으로 열린 차단기라면, 알림 서비스 실행
-		uh.notified[emailDuplicateIndex] = true
-	default:
-		var code = http.StatusServiceUnavailable
-		err, ok := err.(*errors.Error)
-		if ok {
-			code = int(err.Code)
-		}
+	if err != nil {
+		code = http.StatusInternalServerError
+		if err, ok := err.(*errors.Error); ok { code = int(err.Code) }
 		c.Status(code)
-
-		uh.setEntryField(entry, c.Request, body, code, err).Warn()
-	}
-}
-
-func (uh UserHandler) setEntryField(entry *logrus.Entry, r *http.Request, body interface{}, outcome int, err error) *logrus.Entry {
-	var errStr string
-	if err != nil {
-		errStr = err.Error()
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.Error(err))
+		cs.Finish()
+		return
 	}
 
-	b, err := json.Marshal(body)
-	if err != nil {
-		b = []byte{}
+	code = int(resp.Status)
+	c.JSON(code, resp)
+	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+	if code == http.StatusInternalServerError {
+		entry.Warn()
+	} else {
+		entry.Info()
 	}
+	ps.SetTag("status", code)
+	cs.Finish()
 
-	return entry.WithFields(logrus.Fields{
-		"json":    string(b),
-		"outcome": outcome,
-		"error":   errStr,
-	}).WithFields(uh.toLogrus.Request(r))
+	return
 }
