@@ -8,6 +8,7 @@ import (
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
 	"gateway/tool/jwt"
+	"gateway/tool/logrusfield"
 	"gateway/tool/serializer"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,6 @@ type AuthHandler struct {
 	breaker  []*breaker.Breaker
 	mutex    sync.Mutex
 	notified []bool
-	toLogrus serializer.ToLogrusField
 }
 
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
@@ -53,44 +53,59 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 
 func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var body entity.UserIdDuplicate
-	entry := ah.logger.WithField("segment", "userIdDuplicate")
+	var code int
+	xid := c.GetHeader("X-Request-Id")
+	entry := ah.logger.WithFields(logrus.Fields{
+		"segment": "userIdDuplicate",
+		"method": c.Request.Method,
+		"path": c.Request.URL.Path,
+		"client_ip": c.ClientIP(),
+		"X-Request-Id": xid,
+		"header": s.encodeHeaderToString(r.Header),
+	})
 
 	if v, ok := c.Get("error"); ok {
-		c.Status(http.StatusInternalServerError)
-		entry = entry.WithField("group", "middleware")
-		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middleware, err: %v", v.(error)), http.StatusInternalServerError)
-		ah.setEntryField(entry, c.Request, body, http.StatusInternalServerError, err).Warn()
+		code = http.StatusInternalServerError
+		c.Status(code)
+		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middleware, err: %v", v.(error)), int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
 		return
 	}
 
 	v, ok := c.Get("tracer")
 	if !ok {
-		c.Status(http.StatusInternalServerError)
-		entry = entry.WithField("group", "middleware")
-		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", http.StatusInternalServerError)
-		ah.setEntryField(entry, c.Request, body, http.StatusInternalServerError, err).Warn()
+		var code = http.StatusInternalServerError
+		c.Status(code)
+		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
 		return
 	}
 
 	tr := v.(opentracing.Tracer)
 	ps := tr.StartSpan(c.Request.URL.Path)
-	ps.SetTag("X-Request-Id", c.GetHeader("X-Request-Id")).SetTag("segment", "userIdDuplicate")
+	ps.SetTag("X-Request-Id", xid).SetTag("segment", "userIdDuplicate")
 	defer ps.Finish()
 	entry = entry.WithField("group", "handler")
 
 	if err := c.BindJSON(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		err = errors.New(apiGateway, err.Error(), http.StatusBadRequest)
-		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
+		code = http.StatusBadRequest
+		c.Status(code)
+		err = errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	if err := ah.validate.Struct(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		err := errors.New(apiGateway, err.Error(), http.StatusBadRequest)
-		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
+		code = http.StatusBadRequest
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
@@ -101,7 +116,7 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var cs opentracing.Span
 	var resp *authProto.UserIdDuplicatedResponse
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
-		cs = tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", c.GetHeader("X-Request-Id"))
+		cs = tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		req := &authProto.UserIdDuplicatedRequest{UserId: body.UserId}
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
@@ -110,32 +125,35 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	})
 
 	if err == breaker.ErrBreakerOpen {
-		c.Status(http.StatusServiceUnavailable)
-		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), http.StatusServiceUnavailable)
-		ah.setEntryField(entry, c.Request, body, http.StatusServiceUnavailable, err).Error()
-		ps.SetTag("status", http.StatusServiceUnavailable).LogFields(log.Error(err))
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	if err != nil {
-		var code = http.StatusInternalServerError
+		code = http.StatusInternalServerError
 		if err, ok := err.(*errors.Error); ok { code = int(err.Code) }
 		c.Status(code)
-		ah.setEntryField(entry, c.Request, body, code, err).Error()
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
 		ps.SetTag("status", code).LogFields(log.Error(err))
 		cs.Finish()
 		return
 	}
 
-	c.JSON(int(resp.Status), resp)
-	entry = ah.setEntryField(entry, c.Request, body, int(resp.Status), err)
-	if resp.Status == http.StatusInternalServerError {
+	code = int(resp.Status)
+	c.JSON(code, resp)
+	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+	if code == http.StatusInternalServerError {
 		entry.Warn()
 	} else {
 		entry.Info()
 	}
-
-	ps.SetTag("status", resp.Status)
+	ps.SetTag("status", code)
 	cs.Finish()
 
 	return
@@ -143,7 +161,16 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	var body entity.UserCreate
-	entry := ah.logger.WithField("segment", "userCreate")
+
+	xid := c.GetHeader("X-Request-Id")
+	entry := ah.logger.WithFields(logrus.Fields{
+		"segment": "userCreate",
+		"method": c.Request.Method,
+		"path": c.Request.URL.Path,
+		"client_ip": c.ClientIP(),
+		"X-Request-Id": xid,
+		"header": s.encodeHeaderToString(r.Header),
+	})
 
 	if v, ok := c.Get("error"); ok {
 		var code int32 = http.StatusInternalServerError
@@ -164,7 +191,6 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		return
 	}
 
-	xid := c.GetHeader("X-Request-Id")
 	tr := v.(opentracing.Tracer)
 	ps := tr.StartSpan(c.Request.URL.Path)
 	defer ps.Finish()
@@ -247,22 +273,4 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	ps.SetTag("status", resp.Status)
 	cs.Finish()
 	return
-}
-
-func (ah AuthHandler) setEntryField(entry *logrus.Entry, r *http.Request, body interface{}, outcome int, err error) *logrus.Entry {
-	var errStr string
-	if err != nil {
-		errStr = err.Error()
-	}
-
-	b, err := json.Marshal(body)
-	if err != nil {
-		b = []byte{}
-	}
-
-	return entry.WithFields(logrus.Fields{
-		"json":    string(b),
-		"outcome": outcome,
-		"error":   errStr,
-	}).WithFields(ah.toLogrus.Request(r))
 }
