@@ -155,33 +155,29 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 
 func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	var body entity.UserCreate
-
+	var code int
 	xid := c.GetHeader("X-Request-Id")
-	entry := ah.logger.WithFields(logrus.Fields{
-		"segment": "userCreate",
-		"method": c.Request.Method,
-		"path": c.Request.URL.Path,
-		"client_ip": c.ClientIP(),
-		"X-Request-Id": xid,
-		"header": s.encodeHeaderToString(r.Header),
-	})
+	entry := ah.logger.WithField("segment", "userCreate")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	if v, ok := c.Get("error"); ok {
-		var code int32 = http.StatusInternalServerError
-		c.Status(int(code))
-		entry = entry.WithField("group", "middleware")
-		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middlewares, err: %v\n", v.(error)), code)
-		ah.setEntryField(entry, c.Request, body, int(code), err).Warn()
+		code = http.StatusInternalServerError
+		c.Status(code)
+		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middlewares, err: %v\n", v.(error)), int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
+		//ah.setEntryField(entry, c.Request, body, int(code), err).Warn()
 		return
 	}
 
 	v, ok := c.Get("tracer")
 	if !ok {
-		var code = http.StatusInternalServerError
+		code = http.StatusInternalServerError
 		c.Status(code)
-		entry = entry.WithField("group", "middleware")
 		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
-		ah.setEntryField(entry, c.Request, body, code, err)
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Warn()
+		//ah.setEntryField(entry, c.Request, body, code, err)
 		return
 	}
 
@@ -192,26 +188,32 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	entry = entry.WithField("group", "handler")
 
 	if err := c.BindJSON(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		err := errors.New(apiGateway, err.Error(), http.StatusBadRequest)
-		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
+		code = http.StatusBadRequest
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	if err := ah.validate.Struct(&body); err != nil {
-		c.Status(http.StatusBadRequest)
-		err := errors.New(apiGateway, err.Error(), http.StatusBadRequest)
-		ah.setEntryField(entry, c.Request, body, http.StatusBadRequest, err).Info()
-		ps.SetTag("status", http.StatusBadRequest).LogFields(log.Error(err))
+		code = http.StatusBadRequest
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	ss := c.GetHeader("Unique-Authorization")
 	if _, err := jwt.ParseDuplicateCertClaimFromJWT(ss); err != nil {
-		c.Status(http.StatusForbidden)
-		err := errors.New(apiGateway, err.Error(), http.StatusForbidden)
-		ah.setEntryField(entry, c.Request, body, http.StatusForbidden, err).Info()
+		code = http.StatusForbidden
+		c.Status(code)
+		err := errors.New(apiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
 		ps.SetTag("status", http.StatusForbidden).LogFields(log.Error(err))
 		return
 	}
@@ -239,26 +241,29 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	})
 
 	if err == breaker.ErrBreakerOpen {
-		var code = http.StatusServiceUnavailable
+		code = http.StatusServiceUnavailable
 		c.Status(code)
 		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
-		ah.setEntryField(entry, c.Request, body, code, err).Error()
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
 		ps.SetTag("status", code).LogFields(log.Error(err))
 		return
 	}
 
 	if err != nil {
-		var code = http.StatusInternalServerError
+		code = http.StatusInternalServerError
 		if err, ok := err.(*errors.Error); ok { code = int(err.Code) }
 		c.Status(code)
-		ah.setEntryField(entry, c.Request, body, code, err).Error()
-		ps.SetTag("status", http.StatusInternalServerError)
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code)
 		cs.Finish()
 		return
 	}
 
-	c.JSON(int(resp.Status), resp)
-	entry = ah.setEntryField(entry, c.Request, body, int(resp.Status), err)
+	code = int(resp.Status)
+	c.JSON(code, resp)
+	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if resp.Status == http.StatusInternalServerError {
 		entry.Warn()
 	} else {
