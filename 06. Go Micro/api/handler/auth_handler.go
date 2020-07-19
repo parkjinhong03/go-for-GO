@@ -2,14 +2,12 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
 	"gateway/tool/jwt"
 	"gateway/tool/logrusfield"
-	"gateway/tool/serializer"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
