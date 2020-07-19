@@ -18,6 +18,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
+	"github.com/uber/jaeger-client-go"
 	"net/http"
 	"sync"
 )
@@ -109,8 +110,9 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var resp *authProto.UserIdDuplicatedResponse
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
 		cs = tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
-		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		req := &authProto.UserIdDuplicatedRequest{UserId: body.UserId}
+		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
+		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
 		cs.LogFields(log.Object("request", req), log.Object("response", resp))
 		return
@@ -164,7 +166,6 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middlewares, err: %v\n", v.(error)), int32(code))
 		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Warn()
-		//ah.setEntryField(entry, c.Request, body, int(code), err).Warn()
 		return
 	}
 
@@ -175,7 +176,6 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
 		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Warn()
-		//ah.setEntryField(entry, c.Request, body, code, err)
 		return
 	}
 
