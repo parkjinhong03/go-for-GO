@@ -6,6 +6,7 @@ import (
 	"auth/tool/validator"
 	"github.com/micro/go-micro/v2/broker"
 	"github.com/stretchr/testify/mock"
+	"github.com/uber/jaeger-client-go"
 	"log"
 )
 
@@ -33,7 +34,8 @@ func init() {
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 	rbMQ := br.NewRabbitMQForTest(&mockStore)
-	h = NewAuth(rbMQ, adc, validate)
+	// jaeger.Tracer 모의 객체 추가 예정
+	h = NewAuth(rbMQ, adc, validate, &jaeger.Tracer{})
 }
 
 func setUp() {
