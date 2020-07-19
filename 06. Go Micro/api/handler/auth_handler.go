@@ -55,14 +55,8 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var body entity.UserIdDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
-	entry := ah.logger.WithFields(logrus.Fields{
-		"segment": "userIdDuplicate",
-		"method": c.Request.Method,
-		"path": c.Request.URL.Path,
-		"client_ip": c.ClientIP(),
-		"X-Request-Id": xid,
-		"header": s.encodeHeaderToString(r.Header),
-	})
+	entry := ah.logger.WithField("segment", "userIdDuplicate")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	if v, ok := c.Get("error"); ok {
 		code = http.StatusInternalServerError
