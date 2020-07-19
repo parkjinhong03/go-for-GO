@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
@@ -20,7 +19,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	"net/http"
-	"sync"
 )
 
 type AuthHandler struct {
@@ -28,13 +26,13 @@ type AuthHandler struct {
 	logger   *logrus.Logger
 	validate *validator.Validate
 	registry registry.Registry
+	tracer	 opentracing.Tracer
 	breaker  []*breaker.Breaker
-	mutex    sync.Mutex
 	notified []bool
 }
 
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
-	registry registry.Registry, bc conf.BreakerConfig) AuthHandler {
+	registry registry.Registry, tracer opentracing.Tracer, bc conf.BreakerConfig) AuthHandler {
 
 	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
@@ -44,8 +42,8 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 		logger:   logger,
 		validate: validate,
 		registry: registry,
+		tracer:   tracer,
 		breaker:  []*breaker.Breaker{bk1, bk2},
-		mutex:    sync.Mutex{},
 		notified: []bool{false, false},
 	}
 }
@@ -54,33 +52,13 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var body entity.UserIdDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
-	entry := ah.logger.WithField("segment", "userIdDuplicate")
-	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
-	if v, ok := c.Get("error"); ok {
-		code = http.StatusInternalServerError
-		c.Status(code)
-		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middleware, err: %v", v.(error)), int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	v, ok := c.Get("tracer")
-	if !ok {
-		var code = http.StatusInternalServerError
-		c.Status(code)
-		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	tr := v.(opentracing.Tracer)
-	ps := tr.StartSpan(c.Request.URL.Path)
+	ps := ah.tracer.StartSpan(c.Request.URL.Path)
 	ps.SetTag("X-Request-Id", xid).SetTag("segment", "userIdDuplicate")
 	defer ps.Finish()
-	entry = entry.WithField("group", "handler")
+
+	entry := ah.logger.WithField("segment", "userIdDuplicate").WithField("group", "handler")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
@@ -109,7 +87,7 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var cs opentracing.Span
 	var resp *authProto.UserIdDuplicatedResponse
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
-		cs = tr.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		cs = ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		req := &authProto.UserIdDuplicatedRequest{UserId: body.UserId}
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
@@ -157,33 +135,13 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	var body entity.UserCreate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
-	entry := ah.logger.WithField("segment", "userCreate")
-	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
-	if v, ok := c.Get("error"); ok {
-		code = http.StatusInternalServerError
-		c.Status(code)
-		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middlewares, err: %v\n", v.(error)), int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	v, ok := c.Get("tracer")
-	if !ok {
-		code = http.StatusInternalServerError
-		c.Status(code)
-		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	tr := v.(opentracing.Tracer)
-	ps := tr.StartSpan(c.Request.URL.Path)
-	defer ps.Finish()
+	ps := ah.tracer.StartSpan(c.Request.URL.Path)
 	ps.SetTag("X-Request-Id", xid).SetTag("segment", "userCreate")
-	entry = entry.WithField("group", "handler")
+	defer ps.Finish()
+
+	entry := ah.logger.WithField("segment", "userCreate").WithField("group", "handler")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
@@ -223,7 +181,7 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	var cs opentracing.Span
 	var resp *authProto.BeforeCreateAuthResponse
 	err := ah.breaker[userCreateIndex].Run(func() (err error) {
-		cs = tr.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		cs = ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		req := &authProto.BeforeCreateAuthRequest{
 			UserId:       body.UserId,
