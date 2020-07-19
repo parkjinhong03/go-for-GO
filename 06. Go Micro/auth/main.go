@@ -15,6 +15,12 @@ import (
 	"github.com/micro/go-micro/v2/registry"
 	"github.com/micro/go-plugins/broker/rabbitmq/v2"
 	"github.com/micro/go-plugins/registry/consul/v2"
+	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"net"
+	"os"
 )
 
 func main() {
@@ -31,6 +37,36 @@ func main() {
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 
+	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
+	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
+
+	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
+		{Key: "environment", Value: getEnvironment()},
+		{Key: "host_ip", Value: getLocalAddr().IP},
+		{Key: "service", Value: "authService"},
+	}}
+	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
+		{Key: "environment", Value: getEnvironment()},
+		{Key: "host_ip", Value: getLocalAddr().IP},
+		{Key: "service", Value: "userService"},
+	}}
+
+	atr, c, err := ajc.NewTracer(
+		jaegercfg.Logger(jaegerlog.StdLogger),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+
+	utr, c, err := ujc.NewTracer(
+		jaegercfg.Logger(jaegerlog.StdLogger),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+
 	// 서비스 생성
 	service := micro.NewService(
 		micro.Name("examples.blog.service.auth"),
@@ -40,9 +76,9 @@ func main() {
 	)
 
 	// 이벤트 및 rpc 핸들러 객체 생성
-	s := subscriber.NewAuth(rbMQ, adc, validate)
+	s := subscriber.NewAuth(rbMQ, adc, validate, atr)
 	// mq := service.Options().Broker
-	h := handler.NewAuth(rbMQ, adc, validate)
+	h := handler.NewAuth(rbMQ, adc, validate, utr)
 
 	// Broker 초기화 핸들러 함수 생성
 	brkHandleFunc := func() (err error) {
@@ -77,4 +113,24 @@ func main() {
 	if err := service.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getLocalAddr() *net.UDPAddr {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil { log.Fatal(err) }
+	defer func() { _ = conn.Close() } ()
+	return conn.LocalAddr().(*net.UDPAddr)
+}
+
+func getEnvironment() (env string) {
+	env = os.Getenv("ENV")
+	switch env {
+	case "DEV":
+		env = "development"
+	case "PROD":
+		env = "production"
+	default:
+		env = "development"
+	}
+	return
 }
