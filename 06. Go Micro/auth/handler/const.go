@@ -25,4 +25,5 @@ const (
 	MessageEmailDuplicate = "this email is already in use"
 	MessageUnableGenerateJwt = "unable to generate duplicate cert jwt"
 	MessageUnableCheckUserId = "unable to check if user_id is exist"
+	MessageNoSpanContext = "there ins't span context in metadata"
 )
