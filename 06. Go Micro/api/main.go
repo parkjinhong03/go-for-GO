@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"log"
 	"net"
 	"os"
@@ -87,11 +88,18 @@ func main() {
 		{Key: "host_ip", Value: addr.IP},
 		{Key: "service", Value: "authService"},
 	}}
+	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
+	if err != nil { log.Fatal(err) }
+	defer func() { _ = c.Close() }()
+
 	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
 		{Key: "environment", Value: env},
 		{Key: "host_ip", Value: addr.IP},
 		{Key: "service", Value: "userService"},
 	}}
+	utr, c, err := ujc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
+	if err != nil { log.Fatal(err) }
+	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
 	opts := []client.Option{client.Registry(cs)}
@@ -99,8 +107,8 @@ func main() {
 	uc := userProto.NewUserService(UserServiceName, grpc.NewClient(opts...))
 
 	// 핸들러 객체 생성
-	ah := handler.NewAuthHandler(ac, al, v, cs, bc)
-	uh := handler.NewUserHandler(uc, ul, v, cs, bc)
+	ah := handler.NewAuthHandler(ac, al, v, cs, atr, bc)
+	uh := handler.NewUserHandler(uc, ul, v, cs, utr, bc)
 
 	// 핸들러 라우팅
 	router := gin.Default()
@@ -108,14 +116,12 @@ func main() {
 	v1.Use(md.Correlator())
 
 	ar := v1.Group("/")
-	ar.Use(md.Tracer(ajc))
 	{
 		ar.GET("/user-ids/duplicate", ah.UserIdDuplicateHandler)
 		ar.POST("/users", ah.UserCreateHandler)
 	}
 
 	ur := v1.Group("/")
-	ur.Use(md.Tracer(ujc))
 	{
 		ur.GET("/emails/duplicate", uh.EmailDuplicateHandler)
 	}
