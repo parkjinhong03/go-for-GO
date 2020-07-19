@@ -8,7 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/util/log"
+	"github.com/opentracing/opentracing-go"
+	opentracinglog "github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/mock"
+	"github.com/uber/jaeger-client-go"
 	"net/http"
 	"time"
 )
@@ -39,6 +42,7 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 		return
 	}
 
+	// api gateway에서 옳바르지 않은 JWT 필터링 기능 추가 필요
 	var email string
 	if ss, ok := md.Get("Unique-Authorization"); ok && ss != "" {
 		claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
@@ -50,6 +54,20 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 		email = claim.Email
 	}
 
+	scs, ok := md.Get("Span-Context")
+	if !ok {
+		log.Info(http.StatusProxyAuthRequired, MessageNoSpanContext)
+		rsp.SetStatus(http.StatusProxyAuthRequired)
+		return
+	}
+
+	sc, err := jaeger.ContextFromString(scs)
+	if err != nil {
+		log.Info(http.StatusProxyAuthRequired, MessageNoSpanContext)
+		rsp.SetStatus(http.StatusProxyAuthRequired)
+		return
+	}
+
 	var ad dao.AuthDAOService
 	switch ctx.Value("env") {
 	case "test":
@@ -59,8 +77,12 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 		ad = e.adc.GetDefaultAuthDAO()
 	}
 
-	// 로깅 추가
+	dsp := e.tr.StartSpan("CheckIfUserIdExist", opentracing.ChildOf(sc))
+	dsp.SetTag("X-Request-Id", xId)
 	exist, err := ad.CheckIfUserIdExist(req.UserId)
+	dsp.LogFields(opentracinglog.Bool("exist", exist), opentracinglog.Error(err))
+	dsp.Finish()
+
 	if err != nil {
 		log.Info(http.StatusInternalServerError, MessageUnableCheckUserId)
 		rsp.SetStatus(http.StatusInternalServerError)
