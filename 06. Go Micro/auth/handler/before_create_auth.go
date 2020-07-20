@@ -19,34 +19,34 @@ import (
 func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreateAuthRequest, rsp *authProto.BeforeCreateAuthResponse) (_ error) {
 	var err error
 	if err := e.validate.Struct(req); err != nil {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, err.Error())
 		return
 	}
 	var md metadata.Metadata
 	var ok bool
 	if md, ok = metadata.FromContext(ctx); !ok || md == nil {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, MessageUnableGetMetadata)
 		return
 	}
 	var xId string
 	if xId, ok = md.Get("X-Request-Id"); !ok || xId == "" {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, MessageUnableGetMetadata)
 		return
 	}
 	if _, err := uuid.Parse(xId); err != nil {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, err.Error())
 		return
 	}
 
 	// 인증 api gateway에서 처리 예정 (proto 수정 필요...)
 	var ss string
 	if ss, ok = md.Get("Unique-Authorization"); !ok || ss == "" {
-		rsp.SetStatus(http.StatusForbidden)
+		rsp.SetStatusAndMsg(http.StatusForbidden, MessageThereIsNoCert)
 		return
 	}
 	var claim *jwt.DuplicateCertClaim
 	if claim, err = jwt.ParseDuplicateCertClaimFromJWT(ss); err != nil {
-		rsp.SetStatus(http.StatusForbidden)
+		rsp.SetStatusAndMsg(http.StatusForbidden, err.Error())
 		return
 	}
 
@@ -66,12 +66,12 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 
 	sps, ok := md.Get("Span-Context")
 	if !ok {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, MessageNoSpanContext)
 		return
 	}
 	cs, err := jaeger.ContextFromString(sps)
 	if err != nil {
-		rsp.SetStatus(http.StatusProxyAuthRequired)
+		rsp.SetStatusAndMsg(http.StatusProxyAuthRequired, err.Error())
 		return
 	}
 
@@ -98,7 +98,7 @@ func (e *auth) BeforeCreateAuth(ctx context.Context, req *authProto.BeforeCreate
 	msp.Finish()
 
 	if err != nil {
-		rsp.SetStatus(http.StatusInternalServerError)
+		rsp.SetStatusAndMsg(http.StatusInternalServerError, err.Error())
 		return
 	}
 	rsp.SetStatusAndMsg(http.StatusCreated, MessageAuthCreated)
