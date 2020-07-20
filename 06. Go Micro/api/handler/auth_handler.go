@@ -148,7 +148,7 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -158,7 +158,7 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -184,10 +184,10 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	if err == breaker.ErrBreakerOpen {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
-		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		err := errors.New(authClient, breaker.ErrBreakerOpen.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -197,18 +197,19 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		c.Status(code)
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code)
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
 	code = int(resp.Status)
 	c.JSON(code, resp)
+	err = errors.New(authClient, resp.Message, int32(code))
 	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if resp.Status == http.StatusInternalServerError {
 		entry.Warn()
 	} else {
 		entry.Info()
 	}
-	ps.SetTag("status", resp.Status)
+	ps.SetTag("status", resp.Status).LogFields(log.String("message", err.Error()))
 	return
 }
