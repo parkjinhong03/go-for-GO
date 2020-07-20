@@ -12,3 +12,9 @@ const (
 const (
 	MessageBadRequest = "the request is invalid. please check the document"
 )
+
+const (
+	MessageUnableGetMetadata = "unable to get metadata from context"
+	MessageThereIsNoXReqId = "X-Request-Id is not included in message header"
+	MessageNoSpanContext = "there ins't span context in metadata"
+)
