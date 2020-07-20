@@ -84,15 +84,15 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", c.GetHeader("X-Request-Id"))
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	var cs opentracing.Span
 	var resp *authProto.UserIdDuplicatedResponse
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
-		cs = ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
-		req := &authProto.UserIdDuplicatedRequest{UserId: body.UserId}
-		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
+		req := body.ToRequestProto()
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
-		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		cs.LogFields(log.Object("request", req), log.Object("response", resp), log.Error(err))
+		cs.Finish()
 		return
 	})
 
@@ -113,7 +113,6 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.Error(err))
-		cs.Finish()
 		return
 	}
 
@@ -126,7 +125,6 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		entry.Info()
 	}
 	ps.SetTag("status", code)
-	cs.Finish()
 
 	return
 }
@@ -178,21 +176,15 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", xid)
 	ctx = metadata.Set(ctx, "Unique-Authorization", ss)
 
-	var cs opentracing.Span
 	var resp *authProto.BeforeCreateAuthResponse
 	err := ah.breaker[userCreateIndex].Run(func() (err error) {
-		cs = ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-		req := &authProto.BeforeCreateAuthRequest{
-			UserId:       body.UserId,
-			UserPw:       body.UserPw,
-			Name:         body.Name,
-			PhoneNumber:  body.PhoneNumber,
-			Email:        body.Email,
-			Introduction: body.Introduction,
-		}
+		req := body.ToRequestProto()
+		cs := ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.BeforeCreateAuth(ctx, req, opts...)
-		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		cs.LogFields(log.Object("request", req), log.Object("response", resp), log.Error(err))
+		cs.Finish()
 		return
 	})
 
@@ -213,7 +205,6 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code)
-		cs.Finish()
 		return
 	}
 
@@ -226,6 +217,5 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		entry.Info()
 	}
 	ps.SetTag("status", resp.Status)
-	cs.Finish()
 	return
 }
