@@ -19,11 +19,8 @@ const (
 const (
 	MessageUnableGetMetadata = "unable to get metadata from context"
 	MessageThereIsNoXReqId = "X-Request-Id is not included in message header"
-	MessageInvalidXReqId = "X-Request-Id is invalid"
-	MessageUnableParseJwt = "unable to parse unique authorization"
+	MessageThereIsNoCert = "Unique-Authorization is not included in message header"
 	MessageUserIdDuplicate = "this user id is already in use"
 	MessageEmailDuplicate = "this email is already in use"
-	MessageUnableGenerateJwt = "unable to generate duplicate cert jwt"
-	MessageUnableCheckUserId = "unable to check if user_id is exist"
 	MessageNoSpanContext = "there ins't span context in metadata"
 )
