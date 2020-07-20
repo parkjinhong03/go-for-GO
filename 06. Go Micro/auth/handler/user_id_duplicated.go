@@ -37,17 +37,12 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 	}
 
 	// api gateway에서 옳바르지 않은 JWT 필터링 기능 추가 필요 (proto도 변경...............해야된다니)
-	ss, ok := md.Get("Unique-Authorization")
-	if !ok {
-		rsp.SetStatusAndMsg(http.StatusForbidden, MessageThereIsNoCert)
-		return
+	var email string
+	if ss, ok := md.Get("Unique-Authorization"); ok {
+		claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
+		if err != nil { rsp.SetStatusAndMsg(http.StatusForbidden, err.Error()); return }
+		email = claim.Email
 	}
-	claim, err := jwt.ParseDuplicateCertClaimFromJWT(ss)
-	if err != nil {
-		rsp.SetStatusAndMsg(http.StatusForbidden, err.Error())
-		return
-	}
-	email := claim.Email
 
 	scs, ok := md.Get("Span-Context")
 	if !ok {
@@ -85,7 +80,7 @@ func (e *auth) UserIdDuplicated(ctx context.Context, req *authProto.UserIdDuplic
 		return
 	}
 
-	ss, err = jwt.GenerateDuplicateCertJWT(req.UserId, email, time.Hour)
+	ss, err := jwt.GenerateDuplicateCertJWT(req.UserId, email, time.Hour)
 	if err != nil {
 		rsp.SetStatusAndMsg(http.StatusInternalServerError, err.Error())
 		return
