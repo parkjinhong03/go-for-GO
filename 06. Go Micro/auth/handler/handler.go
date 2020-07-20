@@ -11,7 +11,7 @@ type auth struct {
 	mq       broker.Broker
 	adc      *dao.AuthDAOCreator
 	validate *validator.Validate
-	tr       opentracing.Tracer
+	tracer   opentracing.Tracer
 }
 
 func NewAuth(mq broker.Broker, adc *dao.AuthDAOCreator, validate *validator.Validate,
@@ -21,6 +21,6 @@ func NewAuth(mq broker.Broker, adc *dao.AuthDAOCreator, validate *validator.Vali
 		mq:       mq,
 		adc:      adc,
 		validate: validate,
-		tr:       tr,
+		tracer:   tr,
 	}
 }
