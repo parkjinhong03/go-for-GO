@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"gateway/entity"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
@@ -17,8 +16,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
+	"github.com/uber/jaeger-client-go"
 	"net/http"
-	"sync"
 )
 
 type UserHandler struct {
@@ -26,13 +25,13 @@ type UserHandler struct {
 	logger 	 *logrus.Logger
 	validate *validator.Validate
 	registry registry.Registry
+	tracer   opentracing.Tracer
 	breaker  []*breaker.Breaker
-	mutex    sync.Mutex
 	notified []bool
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
-	registry registry.Registry, bc conf.BreakerConfig) UserHandler {
+	registry registry.Registry, tracer opentracing.Tracer, bc conf.BreakerConfig) UserHandler {
 
 	bk := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 
@@ -41,8 +40,8 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		logger:   logger,
 		validate: validate,
 		registry: registry,
+		tracer:   tracer,
 		breaker:  []*breaker.Breaker{bk},
-		mutex:    sync.Mutex{},
 		notified: []bool{false},
 	}
 }
@@ -51,31 +50,13 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	var body entity.EmailDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
-	entry := uh.logger.WithField("segment", "emailDuplicate")
-	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
-	if v, ok := c.Get("error"); ok {
-		code = http.StatusInternalServerError
-		err := errors.New(apiGateway, fmt.Sprintf("some error occurs in middleware, err: %v", v.(error)), int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	v, ok := c.Get("tracer")
-	if !ok {
-		code = http.StatusInternalServerError
-		err := errors.New(apiGateway, "there isn't tracer in *gin.Context", int32(code))
-		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Warn()
-		return
-	}
-
-	tr := v.(opentracing.Tracer)
-	ps := tr.StartSpan(c.Request.URL.Path)
+	ps := uh.tracer.StartSpan(c.Request.URL.Path)
 	ps.SetTag("X-Request-Id", xid).SetTag("segment", "emailDuplicate")
 	defer ps.Finish()
-	entry = entry.WithField("group", "handler")
+
+	entry := uh.logger.WithField("group", "handler").WithField("segment", "emailDuplicate")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
@@ -83,7 +64,7 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -93,7 +74,7 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -101,14 +82,16 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", xid)
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	var cs opentracing.Span
 	var resp *userProto.EmailDuplicatedResponse
 	err := uh.breaker[emailDuplicateIndex].Run(func() (err error) {
-		cs = tr.StartSpan(emailDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
-		req := &userProto.EmailDuplicatedRequest{Email: body.Email}
+		req := body.ToRequestProto()
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		cs := uh.tracer.StartSpan(emailDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = uh.cli.EmailDuplicated(ctx, req, opts...)
-		cs.LogFields(log.Object("request", req), log.Object("response", resp))
+		md, _ := metadata.FromContext(ctx)
+		cs.LogFields(log.Object("req", req), log.Object("resp", resp), log.Object("ctx", md), log.Error(err))
+		cs.Finish()
 		return
 	})
 
@@ -118,7 +101,7 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -128,21 +111,20 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 		c.Status(code)
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code).LogFields(log.Error(err))
-		cs.Finish()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
 	code = int(resp.Status)
 	c.JSON(code, resp)
+	err = errors.New(userClient, resp.Message, int32(code))
 	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if code == http.StatusInternalServerError {
 		entry.Warn()
 	} else {
 		entry.Info()
 	}
-	ps.SetTag("status", code)
-	cs.Finish()
+	ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 
 	return
 }
