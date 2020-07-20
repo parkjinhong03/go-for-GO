@@ -5,7 +5,6 @@ import (
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
-	"gateway/tool/jwt"
 	"gateway/tool/logrusfield"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
@@ -66,7 +65,7 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		err = errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -76,7 +75,7 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		err := errors.New(apiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -91,7 +90,8 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
-		cs.LogFields(log.Object("request", req), log.Object("response", resp), log.Error(err))
+		md, _ := metadata.FromContext(ctx)
+		cs.LogFields(log.Object("req", req), log.Object("resp", resp), log.Object("ctx", md), log.Error(err))
 		cs.Finish()
 		return
 	})
@@ -99,10 +99,10 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	if err == breaker.ErrBreakerOpen {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
-		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		err := errors.New(authClient, breaker.ErrBreakerOpen.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
@@ -112,19 +112,20 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		c.Status(code)
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
-		ps.SetTag("status", code).LogFields(log.Error(err))
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
 	}
 
 	code = int(resp.Status)
 	c.JSON(code, resp)
+	err = errors.New(authClient, resp.Message, int32(code))
 	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if code == http.StatusInternalServerError {
 		entry.Warn()
 	} else {
 		entry.Info()
 	}
-	ps.SetTag("status", code)
+	ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 
 	return
 }
@@ -161,20 +162,11 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		return
 	}
 
-	ss := c.GetHeader("Unique-Authorization")
-	if _, err := jwt.ParseDuplicateCertClaimFromJWT(ss); err != nil {
-		code = http.StatusForbidden
-		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
-		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
-		entry.Info()
-		ps.SetTag("status", http.StatusForbidden).LogFields(log.Error(err))
-		return
-	}
+	// 여기서 인증 관련 기능 추가 예정 (proto 변경 필요)
 
 	ctx := context.Background()
 	ctx = metadata.Set(ctx, "X-Request-Id", xid)
-	ctx = metadata.Set(ctx, "Unique-Authorization", ss)
+	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
 	var resp *authProto.BeforeCreateAuthResponse
 	err := ah.breaker[userCreateIndex].Run(func() (err error) {
@@ -183,7 +175,8 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		cs := ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.BeforeCreateAuth(ctx, req, opts...)
-		cs.LogFields(log.Object("request", req), log.Object("response", resp), log.Error(err))
+		md, _ := metadata.FromContext(ctx)
+		cs.LogFields(log.Object("req", req), log.Object("resp", resp), log.Object("ctx", md), log.Error(err))
 		cs.Finish()
 		return
 	})
