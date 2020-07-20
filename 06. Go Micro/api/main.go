@@ -90,6 +90,7 @@ func main() {
 	}}
 	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
 	if err != nil { log.Fatal(err) }
+	opentracing.SetGlobalTracer(atr) // 이게 맞는건가?
 	defer func() { _ = c.Close() }()
 
 	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
@@ -99,6 +100,7 @@ func main() {
 	}}
 	utr, c, err := ujc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
 	if err != nil { log.Fatal(err) }
+	opentracing.SetGlobalTracer(utr) // 이게 맞는건가?
 	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
