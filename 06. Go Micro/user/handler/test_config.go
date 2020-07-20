@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"github.com/stretchr/testify/mock"
+	"github.com/uber/jaeger-client-go"
 	"log"
 	"user/dao"
 	"user/tool/validator"
@@ -30,7 +31,8 @@ func init() {
 	if err != nil { log.Fatal(err) }
 	udc := dao.NewUserDAOCreator(nil)
 	// mq mock 객체 대입 필요
-	h = NewUser(nil, validate, udc)
+	// tracer 모의 객체 대입 필요
+	h = NewUser(nil, validate, udc, &jaeger.Tracer{})
 }
 
 func setUpEnv() {
