@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/micro/go-micro/v2/client"
 	clientgrpc "github.com/micro/go-micro/v2/client/grpc"
+	"github.com/micro/go-micro/v2/client/selector"
 	"github.com/micro/go-micro/v2/registry"
 	transportgrpc "github.com/micro/go-micro/v2/transport/grpc"
 	"github.com/micro/go-plugins/registry/consul/v2"
@@ -39,6 +40,10 @@ func main() {
 	// service discovery 의존성 객체 생성
 	cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
 
+	// Round Robin Selector 의존성 객체 생성
+	rrs := selector.NewSelector(selector.SetStrategy(selector.RoundRobin), selector.Registry(cs))
+
+	rrs.Select()
 	// 유효성 검사 의존성 객체 생성
 	v, err := validator.New()
 	if err != nil { log.Fatal(err) }
@@ -104,7 +109,7 @@ func main() {
 	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
-	opts := []client.Option{client.Registry(cs), client.Transport(transportgrpc.NewTransport())}
+	opts := []client.Option{client.Registry(cs), client.Transport(transportgrpc.NewTransport()), client.Selector(rrs)}
 	ac := authProto.NewAuthService(AuthServiceName, clientgrpc.NewClient(opts...))
 	uc := userProto.NewUserService(UserServiceName, clientgrpc.NewClient(opts...))
 
