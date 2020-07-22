@@ -5,6 +5,7 @@ import (
 	"github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
 	"github.com/micro/go-micro/v2/registry"
+	"github.com/micro/go-micro/v2/transport/grpc"
 	"github.com/micro/go-plugins/broker/rabbitmq/v2"
 	"github.com/micro/go-plugins/registry/consul/v2"
 	"github.com/opentracing/opentracing-go"
@@ -51,6 +52,7 @@ func main() {
 		micro.Version("latest"),
 		micro.Broker(rbMQ),
 		micro.Registry(cs),
+		micro.Transport(grpc.NewTransport()),
 	)
 
 	brkHandler := func() error {
