@@ -10,11 +10,11 @@ import (
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/gin-gonic/gin"
 	"github.com/micro/go-micro/v2/client"
-	"github.com/micro/go-micro/v2/client/grpc"
+	clientgrpc "github.com/micro/go-micro/v2/client/grpc"
 	"github.com/micro/go-micro/v2/registry"
+	transportgrpc "github.com/micro/go-micro/v2/transport/grpc"
 	"github.com/micro/go-plugins/registry/consul/v2"
 	"github.com/opentracing/opentracing-go"
-	_ "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -104,9 +104,9 @@ func main() {
 	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
-	opts := []client.Option{client.Registry(cs)}
-	ac := authProto.NewAuthService(AuthServiceName, grpc.NewClient(opts...))
-	uc := userProto.NewUserService(UserServiceName, grpc.NewClient(opts...))
+	opts := []client.Option{client.Registry(cs), client.Transport(transportgrpc.NewTransport())}
+	ac := authProto.NewAuthService(AuthServiceName, clientgrpc.NewClient(opts...))
+	uc := userProto.NewUserService(UserServiceName, clientgrpc.NewClient(opts...))
 
 	// 핸들러 객체 생성
 	ah := handler.NewAuthHandler(ac, al, v, cs, atr, bc)
