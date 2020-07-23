@@ -10,7 +10,7 @@ import (
 	"github.com/micro/go-micro/v2/broker"
 )
 
-func (m *auth) ChangeAuthStatus(event broker.Event) (_ error) {
+func (m *Auth) ChangeAuthStatus(event broker.Event) (_ error) {
 	header := event.Message().Header
 	xReqId := header["XRequestID"]
 	msgId := header["MessageID"]

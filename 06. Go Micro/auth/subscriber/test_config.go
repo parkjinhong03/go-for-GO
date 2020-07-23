@@ -13,7 +13,7 @@ import (
 var mockStore mock.Mock
 var authId uint
 var psMsgId uint
-var h *auth
+var h *Auth
 var event = &CustomEvent{
 	mock: &mockStore,
 	msg:  &broker.Message{},

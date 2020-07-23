@@ -13,7 +13,7 @@ import (
 	"github.com/micro/go-micro/v2/broker"
 )
 
-func (m *auth) CreateAuth(e broker.Event) error {
+func (m *Auth) CreateAuth(e broker.Event) error {
 	header := e.Message().Header
 	msgId := header["MessageID"]
 	xReqId := header["XRequestID"]
