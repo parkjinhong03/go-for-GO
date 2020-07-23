@@ -98,11 +98,45 @@ func main() {
 		return
 	}
 
+	// service discovery(consul)에 서비스 등록 함수 생성
+	csf := func() (err error) {
+		ps := strings.Split(s.Server().Options().Address, ":")[3]
+		port, err := strconv.Atoi(ps)
+		if err != nil { log.Fatal(err) }
+		sid := s.Server().Options().Name + "-" + s.Server().Options().Id
+		cid := "service:" + sid
 
+		asr := &api.AgentServiceRegistration{
+			ID:      sid,
+			Name:    s.Server().Options().Name,
+			Port:    port,
+			Address: ip.String(),
+		}
+		err = cs.Agent().ServiceRegister(asr)
+		if err != nil { log.Fatal(err) }
+
+		asc := api.AgentServiceCheck{
+			Name:   s.Server().Options().Name,
+			Status: "passing",
+			TTL:    "8640s",
+		}
+		acr := &api.AgentCheckRegistration{
+			ID:                cid,
+			Name:              fmt.Sprintf("service '%s' check", s.Server().Options().Name),
+			ServiceID:         sid,
+			AgentServiceCheck: asc,
+		}
+		err = cs.Agent().CheckRegister(acr)
+		if err != nil { log.Fatal(err) }
+
+		log.Infof("succeed to registry service and check to consul!! (service id: %s | check id: %s)\n", sid, cid)
+		return
+	}
 
 	// 서비스 초기화 등록
 	s.Init(
 		micro.AfterStart(brf),
+		micro.AfterStart(csf),
 	)
 
 	// 핸들러 등록 및 서비스 실행
