@@ -7,7 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 )
 
-type auth struct {
+type Auth struct {
 	mq       broker.Broker
 	adc      *dao.AuthDAOCreator
 	validate *validator.Validate
@@ -15,9 +15,9 @@ type auth struct {
 }
 
 func NewAuth(mq broker.Broker, adc *dao.AuthDAOCreator, validate *validator.Validate,
-	tr opentracing.Tracer) *auth {
+	tr opentracing.Tracer) *Auth {
 
-	return &auth{
+	return &Auth{
 		mq:       mq,
 		adc:      adc,
 		validate: validate,
