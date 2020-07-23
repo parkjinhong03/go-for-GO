@@ -78,7 +78,8 @@ func main() {
 	// 서비스 초기화 등록
 	s.Init(
 		micro.BeforeStart(brokercloser.RabbitMQInitializer(s.Server(), as)),
-		micro.AfterStart(registrycloser.ConsulServiceRegister(s.Server(), cs)),
+		micro.AfterStart(registrycloser.ConsulServiceRegistry(s.Server(), cs)),
+		micro.AfterStop(registrycloser.ConsulServiceDeregistry(s.Server(), cs)),
 	)
 
 	// rpc 핸들러 등록
