@@ -3,6 +3,8 @@ package main
 import (
 	"auth/adapter/broker"
 	"auth/adapter/db"
+	brokercloser "auth/closer/broker"
+	registrycloser "auth/closer/registry"
 	"auth/dao"
 	"auth/handler"
 	authProto "auth/proto/golang/auth"
@@ -10,20 +12,14 @@ import (
 	"auth/tool/addr"
 	"auth/tool/env"
 	"auth/tool/validator"
-	topic "auth/topic/golang"
-	"fmt"
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2"
-	br "github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
 	"github.com/micro/go-micro/v2/transport/grpc"
-	"github.com/micro/go-plugins/broker/rabbitmq/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	"strconv"
-	"strings"
 )
 
 func main() {
@@ -41,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// persistance layer 객체 생성
+	// Persistance Layer 객체 생성
 	conn, err := db.ConnMysql()
 	if err != nil {
 		log.Fatalf("unable to connect mysql server, err: %v\n", err)
@@ -52,18 +48,24 @@ func main() {
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 
-	// Jaeger 설정 및 Tracer 객체 생성
+	// Jaeger 설정 객체 생성
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
 	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
-
-	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
+	ts := []opentracing.Tag{
 		{Key: "environment", Value: le},
 		{Key: "host_ip", Value: ip.String()},
 		{Key: "service", Value: "authService"},
-	}}
+	}
+	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: ts}
+
+	// Tracer 실행 및 객체 생성
 	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
 	if err != nil { log.Fatal(err) }
 	defer func() { _ = c.Close() }()
+
+	// 이벤트 및 rpc 핸들러 객체 생성
+	as := subscriber.NewAuth(rbMQ, adc, validate, atr)
+	ah := handler.NewAuth(rbMQ, adc, validate, atr)
 
 	// 서비스 생성
 	s := micro.NewService(
@@ -73,77 +75,18 @@ func main() {
 		micro.Transport(grpc.NewTransport()),
 	)
 
-	// 이벤트 및 rpc 핸들러 객체 생성
-	as := subscriber.NewAuth(rbMQ, adc, validate, atr)
-	// mq := service.Options().Broker
-	ah := handler.NewAuth(rbMQ, adc, validate, atr)
-
-	// Broker 초기화 핸들러 함수 생성
-	brf := func() (err error) {
-		brk := s.Options().Broker
-
-		if err = brk.Connect(); err != nil { return }
-		_, err = brk.Subscribe(topic.CreateAuthEventTopic, as.CreateAuth,
-			br.Queue(topic.CreateAuthEventTopic), // Queue 정적 이름 설정
-			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
-			rabbitmq.DurableQueue()) // Queue 연결을 종료해도 삭제X 설정
-		if err != nil { return }
-
-		_, err = brk.Subscribe(topic.ChangeAuthStatusEventTopic, as.ChangeAuthStatus,
-			br.Queue(topic.ChangeAuthStatusEventTopic), // Queue 정적 이름 설정
-			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
-			rabbitmq.DurableQueue()) // Queue 연결을 종료해도 삭제X 설정
-		if err != nil { return }
-
-		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
-		return
-	}
-
-	// service discovery(consul)에 서비스 등록 함수 생성
-	csf := func() (err error) {
-		ps := strings.Split(s.Server().Options().Address, ":")[3]
-		port, err := strconv.Atoi(ps)
-		if err != nil { log.Fatal(err) }
-		sid := s.Server().Options().Name + "-" + s.Server().Options().Id
-		cid := "service:" + sid
-
-		asr := &api.AgentServiceRegistration{
-			ID:      sid,
-			Name:    s.Server().Options().Name,
-			Port:    port,
-			Address: ip.String(),
-		}
-		err = cs.Agent().ServiceRegister(asr)
-		if err != nil { log.Fatal(err) }
-
-		asc := api.AgentServiceCheck{
-			Name:   s.Server().Options().Name,
-			Status: "passing",
-			TTL:    "8640s",
-		}
-		acr := &api.AgentCheckRegistration{
-			ID:                cid,
-			Name:              fmt.Sprintf("service '%s' check", s.Server().Options().Name),
-			ServiceID:         sid,
-			AgentServiceCheck: asc,
-		}
-		err = cs.Agent().CheckRegister(acr)
-		if err != nil { log.Fatal(err) }
-
-		log.Infof("succeed to registry service and check to consul!! (service id: %s | check id: %s)\n", sid, cid)
-		return
-	}
-
 	// 서비스 초기화 등록
 	s.Init(
-		micro.AfterStart(brf),
-		micro.AfterStart(csf),
+		micro.BeforeStart(brokercloser.RabbitMQInitializer(s.Server(), as)),
+		micro.AfterStart(registrycloser.ConsulServiceRegister(s.Server(), cs)),
 	)
 
-	// 핸들러 등록 및 서비스 실행
+	// rpc 핸들러 등록
  	if err := authProto.RegisterAuthHandler(s.Server(), ah); err != nil {
  		log.Fatal(err)
 	}
+
+	// 서비스 실행
 	if err := s.Run(); err != nil {
 		log.Fatal(err)
 	}
