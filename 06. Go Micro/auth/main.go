@@ -7,6 +7,8 @@ import (
 	"auth/handler"
 	authProto "auth/proto/golang/auth"
 	"auth/subscriber"
+	"auth/tool/addr"
+	"auth/tool/env"
 	"auth/tool/validator"
 	topic "auth/topic/golang"
 	"fmt"
@@ -20,19 +22,16 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	"net"
-	"os"
 	"strconv"
 	"strings"
 )
 
 func main() {
-	env := getEnvironment()
-	ip := getLocalAddr().IP
+	le := env.GetLoggingEnv()
+	ip := addr.GetLocalAddr().IP
 
 	// Message Broker 객체 생성
 	rbMQ := broker.ConnRabbitMQ()
-	//cs := consul.NewRegistry(registry.Addrs("http:localhost:8500"))
 
 	// Service Discovery 객체 생성
 	dc := api.DefaultConfig()
@@ -42,20 +41,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 의존성 주입을 위한 객체 생성
+	// persistance layer 객체 생성
 	conn, err := db.ConnMysql()
 	if err != nil {
 		log.Fatalf("unable to connect mysql server, err: %v\n", err)
 	}
 	adc := dao.NewAuthDAOCreator(conn)
+
+	// 유효성 검사 객체 생성
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 
+	// Jaeger 설정 및 Tracer 객체 생성
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
 	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
 
 	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
-		{Key: "environment", Value: env},
+		{Key: "environment", Value: le},
 		{Key: "host_ip", Value: ip.String()},
 		{Key: "service", Value: "authService"},
 	}}
@@ -68,7 +70,6 @@ func main() {
 		micro.Name("examples.blog.service.auth"),
 		micro.Version("latest"),
 		micro.Broker(rbMQ),
-		//micro.Registry(cs),
 		micro.Transport(grpc.NewTransport()),
 	)
 
@@ -146,24 +147,4 @@ func main() {
 	if err := s.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getLocalAddr() *net.UDPAddr {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil { log.Fatal(err) }
-	defer func() { _ = conn.Close() } ()
-	return conn.LocalAddr().(*net.UDPAddr)
-}
-
-func getEnvironment() (env string) {
-	env = os.Getenv("ENV")
-	switch env {
-	case "DEV":
-		env = "development"
-	case "PROD":
-		env = "production"
-	default:
-		env = "development"
-	}
-	return
 }
