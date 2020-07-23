@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func ConsulServiceRegister(s server.Server, cs *api.Client) func() error {
+func ConsulServiceRegistry(s server.Server, cs *api.Client) func() error {
 	return func() (err error) {
 		ps := strings.Split(s.Options().Address, ":")[3]
 		port, err := strconv.Atoi(ps)
@@ -40,9 +40,18 @@ func ConsulServiceRegister(s server.Server, cs *api.Client) func() error {
 			AgentServiceCheck: asc,
 		}
 		err = cs.Agent().CheckRegister(acr)
-		if err != nil { log.Fatal(err) }
+		if err != nil { log.Fatalf("unable to register service in consul, err: %v\n", err) }
 
 		log.Infof("succeed to registry service and check to consul!! (service id: %s | check id: %s)\n", sid, cid)
+		return
+	}
+}
+
+func ConsulServiceDeregistry(s server.Server, cs *api.Client) func() error {
+	return func() (err error) {
+		sid := s.Options().Name + "-" + s.Options().Id
+		err = cs.Agent().ServiceDeregister(sid)
+		if err != nil { log.Fatalf("unable to deregister service in consul, err: %v\n", err) }
 		return
 	}
 }
