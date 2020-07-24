@@ -31,7 +31,7 @@ func ConsulServiceRegistry(s server.Server, cs *api.Client) func() error {
 		asc := api.AgentServiceCheck{
 			Name:   s.Options().Name,
 			Status: "passing",
-			TTL:    "8640s",
+			TTL:    "8640h",
 		}
 		acr := &api.AgentCheckRegistration{
 			ID:                cid,
