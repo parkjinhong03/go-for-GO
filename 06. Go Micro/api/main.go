@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"gateway/handler"
 	md "gateway/middleware"
 	authProto "gateway/proto/golang/auth"
@@ -9,6 +10,7 @@ import (
 	"gateway/tool/validator"
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/gin-gonic/gin"
+	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
 	clientgrpc "github.com/micro/go-micro/v2/client/grpc"
 	"github.com/micro/go-micro/v2/client/selector"
@@ -27,6 +29,7 @@ import (
 )
 
 const (
+	Port = 8000
 	DefaultErrorThreshold = 3
 	DefaultSuccessThreshold = 3
 	DefaultTimeout = time.Minute
@@ -37,13 +40,18 @@ const (
 )
 
 func main() {
-	// service discovery 의존성 객체 생성
-	cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
+	env := getEnvironment()
+	addr := getLocalAddr()
+
+	//service discovery 의존성 객체 생성
+	_cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
 
 	// Round Robin Selector 의존성 객체 생성
-	rrs := selector.NewSelector(selector.SetStrategy(selector.RoundRobin), selector.Registry(cs))
+	_rrs := selector.NewSelector(selector.SetStrategy(selector.RoundRobin), selector.Registry(_cs))
 
-	rrs.Select()
+	cs, err := api.NewClient(api.DefaultConfig())
+	if err != nil { log.Fatal(err) }
+
 	// 유효성 검사 의존성 객체 생성
 	v, err := validator.New()
 	if err != nil { log.Fatal(err) }
@@ -60,9 +68,6 @@ func main() {
 	if err != nil { log.Fatal(err) }
 	uf, err := os.OpenFile(UserLogFilePath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil { log.Fatal(err) }
-
-	env := getEnvironment()
-	addr := getLocalAddr()
 
 	// 훅(파일 로깅) 생성
 	ahk := logrustash.New(af, logrustash.DefaultFormatter(logrus.Fields{
@@ -87,35 +92,35 @@ func main() {
 	// jaeger tracer 생성을 위한 설정 객체 생성
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
 	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
-
 	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
 		{Key: "environment", Value: env},
 		{Key: "host_ip", Value: addr.IP},
 		{Key: "service", Value: "authService"},
 	}}
-	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
-	if err != nil { log.Fatal(err) }
-	opentracing.SetGlobalTracer(atr) // 이게 맞는건가?
-	defer func() { _ = c.Close() }()
-
 	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
 		{Key: "environment", Value: env},
 		{Key: "host_ip", Value: addr.IP},
 		{Key: "service", Value: "userService"},
 	}}
+
+	// tracer 시작 및 객체 생성
+	atr, c, err := ajc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
+	if err != nil { log.Fatal(err) }
+	opentracing.SetGlobalTracer(atr)
+	defer func() { _ = c.Close() }()
 	utr, c, err := ujc.NewTracer(jaegercfg.Logger(jaegerlog.StdLogger))
 	if err != nil { log.Fatal(err) }
-	opentracing.SetGlobalTracer(utr) // 이게 맞는건가?
+	opentracing.SetGlobalTracer(utr)
 	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
-	opts := []client.Option{client.Registry(cs), client.Transport(transportgrpc.NewTransport()), client.Selector(rrs)}
+	opts := []client.Option{client.Registry(_cs), client.Transport(transportgrpc.NewTransport()), client.Selector(_rrs)}
 	ac := authProto.NewAuthService(AuthServiceName, clientgrpc.NewClient(opts...))
 	uc := userProto.NewUserService(UserServiceName, clientgrpc.NewClient(opts...))
 
 	// 핸들러 객체 생성
 	ah := handler.NewAuthHandler(ac, al, v, cs, atr, bc)
-	uh := handler.NewUserHandler(uc, ul, v, cs, utr, bc)
+	uh := handler.NewUserHandler(uc, ul, v, _cs, utr, bc)
 
 	// 핸들러 라우팅
 	router := gin.Default()
@@ -134,7 +139,7 @@ func main() {
 	}
 
 	// api gateway 실행
-	if err := router.Run(":8000"); err != nil {
+	if err := router.Run(fmt.Sprintf(":%d", Port)); err != nil {
 		log.Fatal(err)
 	}
 }
