@@ -9,6 +9,7 @@ import (
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
@@ -24,14 +25,13 @@ type AuthHandler struct {
 	cli      authProto.AuthService
 	logger   *logrus.Logger
 	validate *validator.Validate
-	registry registry.Registry
+	consul	 *api.Client
 	tracer	 opentracing.Tracer
 	breaker  []*breaker.Breaker
-	notified []bool
 }
 
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
-	registry registry.Registry, tracer opentracing.Tracer, bc conf.BreakerConfig) AuthHandler {
+	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) AuthHandler {
 
 	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
@@ -40,10 +40,9 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 		cli:      cli,
 		logger:   logger,
 		validate: validate,
-		registry: registry,
+		consul:	  consul,
 		tracer:   tracer,
 		breaker:  []*breaker.Breaker{bk1, bk2},
-		notified: []bool{false, false},
 	}
 }
 
@@ -85,6 +84,17 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 
 	var resp *authProto.UserIdDuplicatedResponse
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
+		hcs, _, err := ah.consul.Health().Checks(AuthService, &api.QueryOptions{Filter: StatusMustBePassing})
+		if err != nil { return }
+		var nds []*registry.Node
+		for _, hc := range hcs {
+			var as *api.AgentService
+			as, _, err = ah.consul.Agent().Service(hc.ServiceID, nil)
+			if err != nil { return }
+			nds = append(nds, &registry.Node{Id: as.ID, Address: as.Address})
+		}
+		
+
 		req := body.ToRequestProto()
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
