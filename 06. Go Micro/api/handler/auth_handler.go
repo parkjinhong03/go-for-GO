@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
+	"github.com/micro/go-micro/v2/client/selector"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
@@ -19,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	"net/http"
+	"reflect"
 )
 
 type AuthHandler struct {
@@ -26,17 +29,23 @@ type AuthHandler struct {
 	logger   *logrus.Logger
 	validate *validator.Validate
 	consul	 *api.Client
+	nodes	 []*registry.Node
 	tracer	 opentracing.Tracer
 	breaker  []*breaker.Breaker
+	next	 selector.Next
 }
 
+var (
+	defaultOpts = []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+)
+
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
-	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) AuthHandler {
+	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) *AuthHandler {
 
 	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 
-	return AuthHandler{
+	return &AuthHandler{
 		cli:      cli,
 		logger:   logger,
 		validate: validate,
@@ -46,7 +55,7 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 	}
 }
 
-func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
+func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	var body entity.UserIdDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
@@ -86,17 +95,17 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
 		hcs, _, err := ah.consul.Health().Checks(AuthService, &api.QueryOptions{Filter: StatusMustBePassing})
 		if err != nil { return }
-		var nds []*registry.Node
-		for _, hc := range hcs {
-			var as *api.AgentService
-			as, _, err = ah.consul.Agent().Service(hc.ServiceID, nil)
-			if err != nil { return }
-			nds = append(nds, &registry.Node{Id: as.ID, Address: as.Address})
+		nds, err := ah.getNodesFromHealthChecks(hcs)
+		if err != nil { return }
+		if !reflect.DeepEqual(ah.nodes, nds) {
+			ah.nodes = nds
+			ah.next = selector.RoundRobin([]*registry.Service{{ Nodes: ah.nodes }})
 		}
-		
+		nd, err := ah.next()
+		if err != nil { return }
 
 		req := body.ToRequestProto()
-		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+		opts := append(defaultOpts, client.WithAddress(nd.Address))
 		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
@@ -140,7 +149,7 @@ func (ah AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	return
 }
 
-func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
+func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	var body entity.UserCreate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
@@ -221,5 +230,15 @@ func (ah AuthHandler) UserCreateHandler(c *gin.Context) {
 		entry.Info()
 	}
 	ps.SetTag("status", resp.Status).LogFields(log.String("message", err.Error()))
+	return
+}
+
+func (ah *AuthHandler) getNodesFromHealthChecks(hcs api.HealthChecks) (nds []*registry.Node, err error) {
+	var as *api.AgentService
+	for _, hc := range hcs {
+		as, _, err = ah.consul.Agent().Service(hc.ServiceID, nil)
+		if err != nil { return }
+		nds = append(nds, &registry.Node{Id: as.ID, Address: fmt.Sprintf("%s:%d", as.Address, as.Port)})
+	}
 	return
 }
