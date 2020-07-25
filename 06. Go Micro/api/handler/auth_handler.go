@@ -2,11 +2,12 @@ package handler
 
 import (
 	"context"
-	"fmt"
+	"gateway/adapter/consul"
 	"gateway/entity"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
 	"gateway/tool/logrusfield"
+	topic "gateway/topic/golang"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -28,11 +29,13 @@ type AuthHandler struct {
 	cli      authProto.AuthService
 	logger   *logrus.Logger
 	validate *validator.Validate
-	consul	 *api.Client
-	nodes	 []*registry.Node
-	tracer	 opentracing.Tracer
-	breaker  []*breaker.Breaker
-	next	 selector.Next
+	consul   *api.Client
+	nodes    []*registry.Node
+	tracer   opentracing.Tracer
+	//breaker []*breaker.Breaker
+	breakers map[string]*breaker.Breaker
+	brConf   conf.BreakerConfig
+	next     selector.Next
 }
 
 var (
@@ -40,18 +43,18 @@ var (
 )
 
 func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *validator.Validate,
-	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) *AuthHandler {
-
-	bk1 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
-	bk2 := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
+	consul *api.Client, tracer opentracing.Tracer, bcConf conf.BreakerConfig) *AuthHandler {
 
 	return &AuthHandler{
 		cli:      cli,
 		logger:   logger,
 		validate: validate,
-		consul:	  consul,
+		consul:   consul,
 		tracer:   tracer,
-		breaker:  []*breaker.Breaker{bk1, bk2},
+		brConf:   bcConf,
+		//breaker: []*breaker.Breaker{bk1, bk2},
+		breakers: make(map[string]*breaker.Breaker),
+		next:     selector.RoundRobin([]*registry.Service{}),
 	}
 }
 
@@ -70,7 +73,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err = errors.New(apiGateway, err.Error(), int32(code))
+		err = errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
@@ -80,7 +83,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	if err := ah.validate.Struct(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
@@ -91,19 +94,39 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", c.GetHeader("X-Request-Id"))
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	var resp *authProto.UserIdDuplicatedResponse
-	err := ah.breaker[userIdDuplicateIndex].Run(func() (err error) {
-		hcs, _, err := ah.consul.Health().Checks(AuthService, &api.QueryOptions{Filter: StatusMustBePassing})
-		if err != nil { return }
-		nds, err := ah.getNodesFromHealthChecks(hcs)
-		if err != nil { return }
-		if !reflect.DeepEqual(ah.nodes, nds) {
-			ah.nodes = nds
-			ah.next = selector.RoundRobin([]*registry.Service{{ Nodes: ah.nodes }})
-		}
-		nd, err := ah.next()
-		if err != nil { return }
+	nds, err := consul.GetServiceNodes(ah.consul)
+	if err != nil || nds == nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, "There are no services registered in consul.", int32(code))
+		entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
 
+	if !reflect.DeepEqual(ah.nodes, nds) {
+		ah.nodes = nds
+		ah.next = selector.RoundRobin([]*registry.Service{{ Nodes: ah.nodes }})
+	}
+
+	nd, err := ah.next()
+	if err != nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
+		entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
+
+	if _, ok := ah.breakers[nd.Id]; !ok {
+		ah.breakers[nd.Id] = breaker.New(ah.brConf.ErrorThreshold, ah.brConf.SuccessThreshold, ah.brConf.Timeout)
+	}
+
+	var resp *authProto.UserIdDuplicatedResponse
+	err = ah.breakers[nd.Id].Run(func() (err error) {
 		req := body.ToRequestProto()
 		opts := append(defaultOpts, client.WithAddress(nd.Address))
 		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
@@ -164,7 +187,7 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
@@ -174,7 +197,7 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	if err := ah.validate.Struct(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
@@ -188,7 +211,7 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
 	var resp *authProto.BeforeCreateAuthResponse
-	err := ah.breaker[userCreateIndex].Run(func() (err error) {
+	err := ah.breakers["userCreateIndex"].Run(func() (err error) {
 		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
 		req := body.ToRequestProto()
 		cs := ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
@@ -230,15 +253,5 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 		entry.Info()
 	}
 	ps.SetTag("status", resp.Status).LogFields(log.String("message", err.Error()))
-	return
-}
-
-func (ah *AuthHandler) getNodesFromHealthChecks(hcs api.HealthChecks) (nds []*registry.Node, err error) {
-	var as *api.AgentService
-	for _, hc := range hcs {
-		as, _, err = ah.consul.Agent().Service(hc.ServiceID, nil)
-		if err != nil { return }
-		nds = append(nds, &registry.Node{Id: as.ID, Address: fmt.Sprintf("%s:%d", as.Address, as.Port)})
-	}
 	return
 }
