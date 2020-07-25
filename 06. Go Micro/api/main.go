@@ -13,10 +13,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
 	clientgrpc "github.com/micro/go-micro/v2/client/grpc"
-	"github.com/micro/go-micro/v2/client/selector"
-	"github.com/micro/go-micro/v2/registry"
 	transportgrpc "github.com/micro/go-micro/v2/transport/grpc"
-	"github.com/micro/go-plugins/registry/consul/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
@@ -42,12 +39,6 @@ const (
 func main() {
 	env := getEnvironment()
 	addr := getLocalAddr()
-
-	//service discovery 의존성 객체 생성
-	_cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
-
-	// Round Robin Selector 의존성 객체 생성
-	_rrs := selector.NewSelector(selector.SetStrategy(selector.RoundRobin), selector.Registry(_cs))
 
 	cs, err := api.NewClient(api.DefaultConfig())
 	if err != nil { log.Fatal(err) }
@@ -114,13 +105,13 @@ func main() {
 	defer func() { _ = c.Close() }()
 
 	// rpc 클라이언트 객체 생성
-	opts := []client.Option{client.Registry(_cs), client.Transport(transportgrpc.NewTransport()), client.Selector(_rrs)}
+	opts := []client.Option{client.Transport(transportgrpc.NewTransport())}
 	ac := authProto.NewAuthService(AuthServiceName, clientgrpc.NewClient(opts...))
 	uc := userProto.NewUserService(UserServiceName, clientgrpc.NewClient(opts...))
 
 	// 핸들러 객체 생성
 	ah := handler.NewAuthHandler(ac, al, v, cs, atr, bc)
-	uh := handler.NewUserHandler(uc, ul, v, _cs, utr, bc)
+	uh := handler.NewUserHandler(uc, ul, v, cs, utr, bc)
 
 	// 핸들러 라우팅
 	router := gin.Default()
