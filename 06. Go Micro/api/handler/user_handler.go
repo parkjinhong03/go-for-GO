@@ -6,9 +6,11 @@ import (
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
 	"gateway/tool/logrusfield"
+	topic "gateway/topic/golang"
 	"github.com/eapache/go-resiliency/breaker"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
@@ -22,16 +24,16 @@ import (
 
 type UserHandler struct {
 	cli      userProto.UserService
-	logger 	 *logrus.Logger
+	logger   *logrus.Logger
 	validate *validator.Validate
-	registry registry.Registry
+	consul   *api.Client
 	tracer   opentracing.Tracer
 	breaker  []*breaker.Breaker
-	notified []bool
+	nodes    []*registry.Node
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
-	registry registry.Registry, tracer opentracing.Tracer, bc conf.BreakerConfig) UserHandler {
+	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) UserHandler {
 
 	bk := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
 
@@ -39,10 +41,9 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		cli:      cli,
 		logger:   logger,
 		validate: validate,
-		registry: registry,
+		consul:   consul,
 		tracer:   tracer,
 		breaker:  []*breaker.Breaker{bk},
-		notified: []bool{false},
 	}
 }
 
@@ -61,7 +62,7 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
@@ -71,7 +72,7 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	if err := uh.validate.Struct(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
-		err := errors.New(apiGateway, err.Error(), int32(code))
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Info()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
