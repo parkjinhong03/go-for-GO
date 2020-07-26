@@ -23,6 +23,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"net/http"
 	"reflect"
+	"time"
 )
 
 type AuthHandler struct {
@@ -129,7 +130,8 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	err = ah.breakers[nd.Id].Run(func() (err error) {
 		req := body.ToRequestProto()
 		opts := append(defaultOpts, client.WithAddress(nd.Address))
-		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context()))
+		cs.SetTag("X-Request-Id", xid).SetTag("service.id", nd.Id)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
 		md, _ := metadata.FromContext(ctx)
@@ -141,7 +143,10 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	if err == breaker.ErrBreakerOpen {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
-		err := errors.New(authClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		err = errors.New(authClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		ttlErr := ah.consul.Agent().FailTTL(nd.Metadata["CheckID"], breaker.ErrBreakerOpen.Error())
+		if ttlErr != nil { err = ttlErr }
+		time.AfterFunc(ah.brConf.Timeout, func() { _ = ah.consul.Agent().PassTTL(nd.Metadata["CheckID"], "circuit broker is close") })
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
