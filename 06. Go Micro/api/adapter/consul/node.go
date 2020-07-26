@@ -19,7 +19,9 @@ func GetServiceNodes(cs *api.Client) (nds []*registry.Node, err error) {
 	for _, hc := range hcs {
 		as, _, err = cs.Agent().Service(hc.ServiceID, nil)
 		if err != nil { return }
-		nds = append(nds, &registry.Node{Id: as.ID, Address: fmt.Sprintf("%s:%d", as.Address, as.Port)})
+		var md = map[string]string{"CheckID": hc.CheckID}
+		nd := &registry.Node{Id: as.ID, Address: fmt.Sprintf("%s:%d", as.Address, as.Port), Metadata: md}
+		nds = append(nds, nd)
 	}
 	return
 }
