@@ -98,7 +98,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
 		err := errors.New(topic.ApiGateway, "There are no services registered in consul.", int32(code))
-		entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
@@ -114,7 +114,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
 		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
-		entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
 		return
@@ -207,17 +207,46 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 		return
 	}
 
-	// 여기서 인증 관련 기능 추가 예정 (proto 변경 필요)
-
 	ctx := context.Background()
 	ctx = metadata.Set(ctx, "X-Request-Id", xid)
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
+	nds, err := consul.GetServiceNodes(topic.AuthService, ah.consul)
+	if err != nil || nds == nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, "There are no services registered in consul.", int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+	}
+
+	if !reflect.DeepEqual(ah.nodes, nds) {
+		ah.nodes = nds
+		ah.next = selector.RoundRobin([]*registry.Service{{ Nodes: ah.nodes }})
+	}
+
+	nd, err := ah.next()
+	if err != nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
+
+	if _, ok := ah.breakers[nd.Id]; !ok {
+		ah.breakers[nd.Id] = breaker.New(ah.brConf.ErrorThreshold, ah.brConf.SuccessThreshold, ah.brConf.Timeout)
+	}
+
 	var resp *authProto.BeforeCreateAuthResponse
-	err := ah.breakers["userCreateIndex"].Run(func() (err error) {
-		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
+	err = ah.breakers[nd.Id].Run(func() (err error) {
+		opts := append(defaultOpts, client.WithAddress(nd.Address))
 		req := body.ToRequestProto()
-		cs := ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		cs := ah.tracer.StartSpan(beforeCreateAuth, opentracing.ChildOf(ps.Context()))
+		cs.SetTag("X-Request-Id", xid).SetTag("Service-Id", nd.Id)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.BeforeCreateAuth(ctx, req, opts...)
 		md, _ := metadata.FromContext(ctx)
@@ -230,6 +259,10 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
 		err := errors.New(authClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		ttlErr := ah.consul.Agent().FailTTL(nd.Metadata["CheckID"], breaker.ErrBreakerOpen.Error())
+		if ttlErr != nil { err = ttlErr }
+		passFunc := func() { _ = ah.consul.Agent().PassTTL(nd.Metadata["CheckID"], "circuit breaker is close") }
+		time.AfterFunc(ah.brConf.Timeout, passFunc)
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
