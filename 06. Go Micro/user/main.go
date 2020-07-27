@@ -1,42 +1,48 @@
 package main
 
 import (
+	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2"
-	"github.com/micro/go-micro/v2/broker"
 	log "github.com/micro/go-micro/v2/logger"
-	"github.com/micro/go-micro/v2/registry"
 	"github.com/micro/go-micro/v2/transport/grpc"
-	"github.com/micro/go-plugins/broker/rabbitmq/v2"
-	"github.com/micro/go-plugins/registry/consul/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	. "net"
-	"os"
 	br "user/adapter/broker"
 	"user/adapter/db"
+	"user/closer/broker"
+	"user/closer/registry"
 	"user/dao"
 	"user/handler"
 	userProto "user/proto/golang/user"
 	"user/subscriber"
+	"user/tool/addr"
+	"user/tool/env"
 	"user/tool/validator"
 )
 
 func main() {
+	ip := addr.GetLocal().IP
+	le := env.GetForLogging()
+
+	cs, err := api.NewClient(api.DefaultConfig())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	conn, err := db.ConnMysql()
 	if err != nil { log.Fatal(err) }
 	udc := dao.NewUserDAOCreator(conn)
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 	rbMQ := br.ConnRabbitMQ()
-	cs := consul.NewRegistry(registry.Addrs("http://localhost:8500"))
 
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
 	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
 	ujc := jaegercfg.Configuration{ServiceName: "user-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
-		{Key: "environment", Value: getEnvironment()},
-		{Key: "host_ip", Value: getLocalAddr().IP},
+		{Key: "environment", Value: le},
+		{Key: "host_ip", Value: ip.String()},
 		{Key: "service", Value: "userService"},
 	}}
 
@@ -44,52 +50,27 @@ func main() {
 	if err != nil { log.Fatal(err) }
 	defer func() { _ = c.Close() }()
 
-	h := handler.NewUser(rbMQ, validate, udc, utr)
-	s := subscriber.NewUser(rbMQ, validate, udc)
+	uh := handler.NewUser(rbMQ, validate, udc, utr)
+	us := subscriber.NewUser(rbMQ, validate, udc)
 
-	service := micro.NewService(
+	s := micro.NewService(
 		micro.Name("examples.blog.service.user"),
 		micro.Version("latest"),
 		micro.Broker(rbMQ),
-		micro.Registry(cs),
 		micro.Transport(grpc.NewTransport()),
 	)
 
-	brkHandler := func() error {
-		brk := service.Options().Broker
-		if err := brk.Connect(); err != nil { log.Fatal(err) }
-		options := []broker.SubscribeOption{broker.Queue(subscriber.CreateUserEventTopic), broker.DisableAutoAck(), rabbitmq.DurableQueue()}
-		if _, err := brk.Subscribe(subscriber.CreateUserEventTopic, s.CreateUser, options...); err != nil { log.Fatal(err) }
-		log.Infof("succeed in connecting to broker!! (name: %s | addr: %s)\n",  brk.String(), brk.Address())
-		return nil
-	}
+	s.Init(
+		micro.BeforeStart(broker.RabbitMQInitializer(s.Server(), us)),
+		micro.AfterStart(registry.ConsulServiceRegistry(s.Server(), cs)),
+		micro.BeforeStop(registry.ConsulServiceDeregistry(s.Server(), cs)),
+	)
 
-	service.Init(micro.AfterStart(brkHandler))
-
-	if err = userProto.RegisterUserHandler(service.Server(), h); err != nil {
+	if err = userProto.RegisterUserHandler(s.Server(), uh); err != nil {
 		log.Fatal(err)
 	}
-	if err := service.Run(); err != nil {
+
+	if err := s.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getLocalAddr() *UDPAddr {
-	conn, err := Dial("udp", "8.8.8.8:80")
-	if err != nil { log.Fatal(err) }
-	defer func() { _ = conn.Close() } ()
-	return conn.LocalAddr().(*UDPAddr)
-}
-
-func getEnvironment() (env string) {
-	env = os.Getenv("ENV")
-	switch env {
-	case "DEV":
-		env = "development"
-	case "PROD":
-		env = "production"
-	default:
-		env = "development"
-	}
-	return
 }
