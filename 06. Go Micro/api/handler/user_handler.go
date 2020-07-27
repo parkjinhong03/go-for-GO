@@ -40,9 +40,9 @@ type UserHandler struct {
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
-	consul *api.Client, tracer opentracing.Tracer, bcConf conf.BreakerConfig) UserHandler {
+	consul *api.Client, tracer opentracing.Tracer, bcConf conf.BreakerConfig) *UserHandler {
 
-	return UserHandler{
+	return &UserHandler{
 		cli:      cli,
 		logger:   logger,
 		validate: validate,
@@ -55,7 +55,7 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 	}
 }
 
-func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
+func (uh *UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	var body entity.EmailDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
