@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"gateway/adapter/consul"
 	"gateway/entity"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2/client"
+	"github.com/micro/go-micro/v2/client/selector"
 	"github.com/micro/go-micro/v2/errors"
 	"github.com/micro/go-micro/v2/metadata"
 	"github.com/micro/go-micro/v2/registry"
@@ -20,6 +22,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go"
 	"net/http"
+	"reflect"
+	"time"
 )
 
 type UserHandler struct {
@@ -28,14 +32,15 @@ type UserHandler struct {
 	validate *validator.Validate
 	consul   *api.Client
 	tracer   opentracing.Tracer
-	breaker  []*breaker.Breaker
+	//breaker  []*breaker.Breaker
+	breakers map[string]*breaker.Breaker
+	brConf   conf.BreakerConfig
 	nodes    []*registry.Node
+	next	 selector.Next
 }
 
 func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *validator.Validate,
-	consul *api.Client, tracer opentracing.Tracer, bc conf.BreakerConfig) UserHandler {
-
-	bk := breaker.New(bc.ErrorThreshold, bc.SuccessThreshold, bc.Timeout)
+	consul *api.Client, tracer opentracing.Tracer, bcConf conf.BreakerConfig) UserHandler {
 
 	return UserHandler{
 		cli:      cli,
@@ -43,7 +48,10 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		validate: validate,
 		consul:   consul,
 		tracer:   tracer,
-		breaker:  []*breaker.Breaker{bk},
+		//breaker:  []*breaker.Breaker{bk},
+		breakers: make(map[string]*breaker.Breaker),
+		brConf:   bcConf,
+		next:     selector.RoundRobin([]*registry.Service{}),
 	}
 }
 
@@ -83,11 +91,43 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", xid)
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
+	nds, err := consul.GetServiceNodes(topic.UserService, uh.consul)
+	if err != nil || nds == nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, "There are no services registered in consul. or consul error", int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
+
+	if !reflect.DeepEqual(uh.nodes, nds) {
+		uh.nodes = nds
+		uh.next = selector.RoundRobin([]*registry.Service{{ Nodes: uh.nodes }})
+	}
+
+	nd, err := uh.next()
+	if err != nil {
+		code = http.StatusServiceUnavailable
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, err.Error(), int32(code))
+		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Error()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
+
+	if _, ok := uh.breakers[nd.Id]; !ok {
+		uh.breakers[nd.Id] = breaker.New(uh.brConf.ErrorThreshold, uh.brConf.SuccessThreshold, uh.brConf.Timeout)
+	}
+
 	var resp *userProto.EmailDuplicatedResponse
-	err := uh.breaker[emailDuplicateIndex].Run(func() (err error) {
+	err = uh.breakers[nd.Id].Run(func() (err error) {
 		req := body.ToRequestProto()
-		opts := []client.CallOption{client.WithDialTimeout(DefaultDialTimeout), client.WithRequestTimeout(DefaultRequestTimeout)}
-		cs := uh.tracer.StartSpan(emailDuplicate, opentracing.ChildOf(ps.Context())).SetTag("X-Request-Id", xid)
+		opts := append(defaultOpts, client.WithAddress(nd.Address))
+		cs := uh.tracer.StartSpan(emailDuplicate, opentracing.ChildOf(ps.Context()))
+		cs.SetTag("X-Request-Id", xid).SetTag("Service-Id", nd.Id)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = uh.cli.EmailDuplicated(ctx, req, opts...)
 		md, _ := metadata.FromContext(ctx)
@@ -100,6 +140,10 @@ func (uh UserHandler) EmailDuplicateHandler(c *gin.Context) {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
 		err := errors.New(userClient, breaker.ErrBreakerOpen.Error(), int32(code))
+		tlsErr := uh.consul.Agent().FailTTL(nd.Metadata["CheckID"], breaker.ErrBreakerOpen.Error())
+		if tlsErr != nil { err = tlsErr }
+		passFunc := func(){ _ = uh.consul.Agent().PassTTL(nd.Metadata["CheckID"], "circuit breaker is close") }
+		time.AfterFunc(uh.brConf.Timeout, passFunc)
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
