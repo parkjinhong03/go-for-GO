@@ -6,14 +6,14 @@ import (
 	"user/dao"
 )
 
-type user struct {
+type User struct {
 	mq       broker.Broker
 	udc      *dao.UserDAOCreator
 	validate *validator.Validate
 }
 
-func NewUser(mq broker.Broker, validate *validator.Validate, udc *dao.UserDAOCreator) *user {
-	return &user{
+func NewUser(mq broker.Broker, validate *validator.Validate, udc *dao.UserDAOCreator) *User {
+	return &User{
 		mq:       mq,
 		udc:      udc,
 		validate: validate,

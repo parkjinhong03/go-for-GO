@@ -21,7 +21,7 @@ const (
 )
 
 var mockStore mock.Mock
-var h *user
+var h *User
 var userId uint
 var psMsgId uint
 var event = &CustomEvent{

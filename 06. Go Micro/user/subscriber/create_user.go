@@ -13,7 +13,7 @@ import (
 	topic "user/topic/golang"
 )
 
-func (u *user) CreateUser(event broker.Event) error {
+func (u *User) CreateUser(event broker.Event) error {
 	header := event.Message().Header
 	xReqId := header["XRequestID"]
 	msgId := header["MessageID"]
