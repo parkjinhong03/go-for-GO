@@ -33,7 +33,6 @@ type AuthHandler struct {
 	consul   *api.Client
 	nodes    []*registry.Node
 	tracer   opentracing.Tracer
-	//breaker []*breaker.Breaker
 	breakers map[string]*breaker.Breaker
 	brConf   conf.BreakerConfig
 	next     selector.Next
@@ -53,7 +52,6 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 		consul:   consul,
 		tracer:   tracer,
 		brConf:   bcConf,
-		//breaker: []*breaker.Breaker{bk1, bk2},
 		breakers: make(map[string]*breaker.Breaker),
 		next:     selector.RoundRobin([]*registry.Service{}),
 	}
@@ -95,7 +93,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	ctx = metadata.Set(ctx, "X-Request-Id", c.GetHeader("X-Request-Id"))
 	ctx = metadata.Set(ctx, "Unique-Authorization", c.GetHeader("Unique-Authorization"))
 
-	nds, err := consul.GetServiceNodes(ah.consul)
+	nds, err := consul.GetServiceNodes(topic.AuthService, ah.consul)
 	if err != nil || nds == nil {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
@@ -131,7 +129,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		req := body.ToRequestProto()
 		opts := append(defaultOpts, client.WithAddress(nd.Address))
 		cs := ah.tracer.StartSpan(userIdDuplicate, opentracing.ChildOf(ps.Context()))
-		cs.SetTag("X-Request-Id", xid).SetTag("service.id", nd.Id)
+		cs.SetTag("X-Request-Id", xid).SetTag("Service-Id", nd.Id)
 		ctx = metadata.Set(ctx, "Span-Context", cs.Context().(jaeger.SpanContext).String())
 		resp, err = ah.cli.UserIdDuplicated(ctx, req, opts...)
 		md, _ := metadata.FromContext(ctx)
