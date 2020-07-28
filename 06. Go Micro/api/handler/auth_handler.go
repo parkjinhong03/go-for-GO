@@ -162,7 +162,11 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 	}
 
 	code = int(resp.Status)
-	c.JSON(code, resp)
+	if code == http.StatusInternalServerError || code == http.StatusServiceUnavailable {
+		c.Status(code)
+	} else {
+		c.JSON(code, resp)
+	}
 	err = errors.New(authClient, resp.Message, int32(code))
 	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if code == http.StatusInternalServerError {
@@ -215,10 +219,11 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	if err != nil || nds == nil {
 		code = http.StatusServiceUnavailable
 		c.Status(code)
-		err := errors.New(topic.ApiGateway, "There are no services registered in consul.", int32(code))
+		err := errors.New(topic.ApiGateway, "no available registered service in consul, or consul error", int32(code))
 		entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 		entry.Error()
 		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
 	}
 
 	if !reflect.DeepEqual(ah.nodes, nds) {
@@ -280,7 +285,11 @@ func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
 	}
 
 	code = int(resp.Status)
-	c.JSON(code, resp)
+	if code == http.StatusInternalServerError || code == http.StatusServiceUnavailable {
+		c.Status(code)
+	} else {
+		c.JSON(code, resp)
+	}
 	err = errors.New(authClient, resp.Message, int32(code))
 	entry = entry.WithFields(logrusfield.ForReturn(body, code, err))
 	if resp.Status == http.StatusInternalServerError {
