@@ -5,6 +5,7 @@ import (
 	"auth/adapter/db"
 	brokercloser "auth/closer/broker"
 	registrycloser "auth/closer/registry"
+	sqlcloser "auth/closer/sql"
 	"auth/dao"
 	"auth/handler"
 	authProto "auth/proto/golang/auth"
@@ -12,6 +13,8 @@ import (
 	"auth/tool/addr"
 	"auth/tool/env"
 	"auth/tool/validator"
+	"github.com/InVisionApp/go-health/v2"
+	"github.com/InVisionApp/go-health/v2/checkers"
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2"
 	log "github.com/micro/go-micro/v2/logger"
@@ -20,6 +23,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"time"
 )
 
 func main() {
@@ -85,6 +89,30 @@ func main() {
 	// rpc 핸들러 등록
  	if err := authProto.RegisterAuthHandler(s.Server(), ah); err != nil {
  		log.Fatal(err)
+	}
+
+	// health check 객체 생성
+	h := health.New()
+
+	// DB checker 객체 생성
+	sqlc, err := checkers.NewSQL(&checkers.SQLConfig{
+		Pinger: conn.DB(),
+	})
+	sqlh := &health.Config{
+		Name:       "SQL-Checker",
+		Checker:    sqlc,
+		Interval:   time.Second * 5,
+		OnComplete: sqlcloser.TTLCheckHandler(s.Server(), cs),
+	}
+
+	// DB, MQ health checker 등록
+	if err = h.AddChecks([]*health.Config{sqlh}); err != nil {
+		log.Fatal(err)
+	}
+
+	// health check 실행
+	if err = h.Start(); err != nil {
+		log.Fatal(err)
 	}
 
 	// 서비스 실행
