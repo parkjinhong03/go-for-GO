@@ -13,7 +13,6 @@ func RabbitMQInitializer(s server.Server, as *subscriber.Auth) func() error {
 	return func() (err error) {
 		brk := s.Options().Broker
 
-		if err = brk.Connect(); err != nil { return }
 		_, err = brk.Subscribe(topic.CreateAuthEventTopic, as.CreateAuth,
 			br.Queue(topic.CreateAuthEventTopic), // Queue 정적 이름 설정
 			br.DisableAutoAck(), // Ack를 수동으로 실행하게 설정
