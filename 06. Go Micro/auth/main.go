@@ -8,6 +8,7 @@ import (
 	sqlcloser "auth/closer/sql"
 	"auth/dao"
 	"auth/handler"
+	customchecker "auth/plugin/checker"
 	authProto "auth/proto/golang/auth"
 	"auth/subscriber"
 	"auth/tool/addr"
@@ -32,6 +33,7 @@ func main() {
 
 	// Message Broker 객체 생성
 	rbMQ := broker.ConnRabbitMQ()
+	if err := rbMQ.Connect(); err != nil { log.Fatal(err) }
 
 	// Service Discovery 객체 생성
 	dc := api.DefaultConfig()
@@ -95,9 +97,8 @@ func main() {
 	h := health.New()
 
 	// DB checker 객체 생성
-	sqlc, err := checkers.NewSQL(&checkers.SQLConfig{
-		Pinger: conn.DB(),
-	})
+	sqlc, err := checkers.NewSQL(&checkers.SQLConfig{ Pinger: conn.DB() })
+	if err != nil { log.Fatal(err) }
 	sqlh := &health.Config{
 		Name:       "SQL-Checker",
 		Checker:    sqlc,
@@ -105,8 +106,18 @@ func main() {
 		OnComplete: sqlcloser.TTLCheckHandler(s.Server(), cs),
 	}
 
+	// Broker Checker 객체 생성
+	brc, err := customchecker.NewBroker(rbMQ)
+	if err != nil { log.Fatal(err) }
+	brh := &health.Config{
+		Name:       "Broker-Checker",
+		Checker:    brc,
+		Interval:   time.Second * 5,
+		OnComplete: brokercloser.TTLCheckHandler(s.Server(), cs),
+	}
+
 	// DB, MQ health checker 등록
-	if err = h.AddChecks([]*health.Config{sqlh}); err != nil {
+	if err = h.AddChecks([]*health.Config{sqlh, brh}); err != nil {
 		log.Fatal(err)
 	}
 
