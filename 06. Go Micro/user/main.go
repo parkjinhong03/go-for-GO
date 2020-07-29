@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/InVisionApp/go-health/v2"
+	"github.com/InVisionApp/go-health/v2/checkers"
 	"github.com/hashicorp/consul/api"
 	"github.com/micro/go-micro/v2"
 	log "github.com/micro/go-micro/v2/logger"
@@ -9,12 +11,15 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"time"
 	br "user/adapter/broker"
 	"user/adapter/db"
 	"user/closer/broker"
 	"user/closer/registry"
+	sqlcloser "user/closer/sql"
 	"user/dao"
 	"user/handler"
+	customchecker "user/plugin/checker"
 	userProto "user/proto/golang/user"
 	"user/subscriber"
 	"user/tool/addr"
@@ -37,6 +42,7 @@ func main() {
 	validate, err := validator.New()
 	if err != nil { log.Fatal(err) }
 	rbMQ := br.ConnRabbitMQ()
+	if err := rbMQ.Connect(); err != nil { log.Fatal(err) }
 
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
 	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
@@ -67,6 +73,34 @@ func main() {
 	)
 
 	if err = userProto.RegisterUserHandler(s.Server(), uh); err != nil {
+		log.Fatal(err)
+	}
+
+	h := health.New()
+
+	sqlc, err := checkers.NewSQL(&checkers.SQLConfig{ Pinger: conn.DB() })
+	if err != nil { log.Fatal(err) }
+	sqlh := &health.Config{
+		Name:       "SQL-Checker",
+		Checker:    sqlc,
+		Interval:   time.Second * 5,
+		OnComplete: sqlcloser.TTLCheckHandler(s.Server(), cs),
+	}
+
+	brc, err := customchecker.NewBroker(rbMQ)
+	if err != nil { log.Fatal(err) }
+	brh := &health.Config{
+		Name:       "Broker-Checker",
+		Checker:    brc,
+		Interval:   time.Second * 5,
+		OnComplete: broker.TTLCheckHandler(s.Server(), cs),
+	}
+
+	if err := h.AddChecks([]*health.Config{sqlh, brh}); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := h.Start(); err != nil {
 		log.Fatal(err)
 	}
 
