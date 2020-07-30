@@ -23,6 +23,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"net/http"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,7 @@ type AuthHandler struct {
 	breakers map[string]*breaker.Breaker
 	brConf   conf.BreakerConfig
 	next     selector.Next
+	mutex    sync.Mutex
 }
 
 var (
@@ -53,22 +55,37 @@ func NewAuthHandler(cli authProto.AuthService, logger *logrus.Logger, validate *
 		tracer:   tracer,
 		brConf:   bcConf,
 		breakers: make(map[string]*breaker.Breaker),
-		next:     selector.RoundRobin([]*registry.Service{}),
 	}
 }
 
 func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
+	// dos로 인식되어 차단된 ip의 요청일 경우
+	if c.Writer.Status() == http.StatusForbidden {
+		return
+	}
+
 	var body entity.UserIdDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
+
+	entry := ah.logger.WithField("segment", "userIdDuplicate")
+	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
 
 	ps := ah.tracer.StartSpan(c.Request.URL.Path)
 	ps.SetTag("X-Request-Id", xid).SetTag("segment", "userIdDuplicate")
 	defer ps.Finish()
 
-	entry := ah.logger.WithField("segment", "userIdDuplicate").WithField("group", "handler")
-	entry = entry.WithFields(logrusfield.ForHandleRequest(c.Request, c.ClientIP()))
+	if c.Writer.Status() != http.StatusOK {
+		code = c.Writer.Status()
+		c.Status(code)
+		err := errors.New(topic.ApiGateway, c.GetString("detail"), int32(code))
+		entry = entry.WithField("group", "middleware").WithFields(logrusfield.ForReturn(body, code, err))
+		entry.Info()
+		ps.SetTag("status", code).LogFields(log.String("message", err.Error()))
+		return
+	}
 
+	entry = entry.WithField("group", "handler")
 	if err := c.BindJSON(&body); err != nil {
 		code = http.StatusBadRequest
 		c.Status(code)
@@ -104,10 +121,12 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
+	ah.mutex.Lock()
 	if !reflect.DeepEqual(ah.nodes, nds) {
 		ah.nodes = nds
 		ah.next = selector.RoundRobin([]*registry.Service{{ Nodes: ah.nodes }})
 	}
+	ah.mutex.Unlock()
 
 	nd, err := ah.next()
 	if err != nil {
@@ -120,9 +139,11 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
+	ah.mutex.Lock()
 	if _, ok := ah.breakers[nd.Id]; !ok {
 		ah.breakers[nd.Id] = breaker.New(ah.brConf.ErrorThreshold, ah.brConf.SuccessThreshold, ah.brConf.Timeout)
 	}
+	ah.mutex.Unlock()
 
 	var resp *authProto.UserIdDuplicatedResponse
 	err = ah.breakers[nd.Id].Run(func() (err error) {
