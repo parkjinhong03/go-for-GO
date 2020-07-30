@@ -117,6 +117,7 @@ func main() {
 	router := gin.Default()
 	v1 := router.Group("/v1")
 	v1.Use(md.Correlator())
+	v1.Use(md.Throttler().Throttling)
 
 	ar := v1.Group("/")
 	{
