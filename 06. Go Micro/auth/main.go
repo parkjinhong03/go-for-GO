@@ -36,9 +36,7 @@ func main() {
 	if err := rbMQ.Connect(); err != nil { log.Fatal(err) }
 
 	// Service Discovery 객체 생성
-	dc := api.DefaultConfig()
-	dc.Address = ip.String() + ":8500"
-	cs, err := api.NewClient(dc)
+	cs, err := api.NewClient(api.DefaultConfig())
 	if err != nil {
 		log.Fatal(err)
 	}
