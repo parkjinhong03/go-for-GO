@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"gateway/adapter/consul"
-	"gateway/entity"
+	requestentity "gateway/entity/request"
 	authProto "gateway/proto/golang/auth"
 	"gateway/tool/conf"
 	"gateway/tool/logrusfield"
@@ -64,7 +64,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 		return
 	}
 
-	var body entity.UserIdDuplicate
+	var body requestentity.UserIdDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
 
@@ -201,7 +201,7 @@ func (ah *AuthHandler) UserIdDuplicateHandler(c *gin.Context) {
 }
 
 func (ah *AuthHandler) UserCreateHandler(c *gin.Context) {
-	var body entity.UserCreate
+	var body requestentity.UserCreate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
 

@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"gateway/adapter/consul"
-	"gateway/entity"
+	requestentity "gateway/entity/request"
 	userProto "gateway/proto/golang/user"
 	"gateway/tool/conf"
 	"gateway/tool/logrusfield"
@@ -32,7 +32,6 @@ type UserHandler struct {
 	validate *validator.Validate
 	consul   *api.Client
 	tracer   opentracing.Tracer
-	//breaker  []*breaker.Breaker
 	breakers map[string]*breaker.Breaker
 	brConf   conf.BreakerConfig
 	nodes    []*registry.Node
@@ -48,7 +47,6 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 		validate: validate,
 		consul:   consul,
 		tracer:   tracer,
-		//breaker:  []*breaker.Breaker{bk},
 		breakers: make(map[string]*breaker.Breaker),
 		brConf:   bcConf,
 		next:     selector.RoundRobin([]*registry.Service{}),
@@ -56,7 +54,7 @@ func NewUserHandler(cli userProto.UserService, logger *logrus.Logger, validate *
 }
 
 func (uh *UserHandler) EmailDuplicateHandler(c *gin.Context) {
-	var body entity.EmailDuplicate
+	var body requestentity.EmailDuplicate
 	var code int
 	xid := c.GetHeader("X-Request-Id")
 
