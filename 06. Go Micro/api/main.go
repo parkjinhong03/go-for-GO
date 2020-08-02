@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	registryentity "gateway/entity/registry"
 	"gateway/handler"
 	md "gateway/middleware"
 	authProto "gateway/proto/golang/auth"
@@ -30,6 +32,8 @@ const (
 	DefaultErrorThreshold = 3
 	DefaultSuccessThreshold = 3
 	DefaultTimeout = time.Minute
+	AuthLogFileDirectory = "/Users/parkjinhong/log/gateway"
+	UserLogFileDirectory = "/Users/parkjinhong/log/gateway"
 	AuthLogFilePath = "/Users/parkjinhong/log/gateway/auth.log"
 	UserLogFilePath = "/Users/parkjinhong/log/gateway/user.log"
 	AuthServiceName = "examples.blog.service.auth"
@@ -40,7 +44,12 @@ func main() {
 	env := getEnvironment()
 	addr := getLocalAddr()
 
-	cs, err := api.NewClient(api.DefaultConfig())
+	if os.Getenv("CONSUL_ADDRESS") == "" {
+		log.Fatal("Please set CONSUL_ADDRESS in env")
+	}
+	cfg := api.DefaultConfig()
+	cfg.Address = os.Getenv(os.Getenv("CONSUL_ADDRESS"))
+	cs, err := api.NewClient(cfg)
 	if err != nil { log.Fatal(err) }
 
 	// 유효성 검사 의존성 객체 생성
@@ -52,6 +61,14 @@ func main() {
 		ErrorThreshold:   DefaultErrorThreshold,
 		SuccessThreshold: DefaultSuccessThreshold,
 		Timeout:          DefaultTimeout,
+	}
+
+	// log 디렉토리 초기화
+	if _, err := os.Stat(AuthLogFileDirectory); os.IsNotExist(err) {
+		if err = os.MkdirAll(AuthLogFileDirectory, os.ModePerm); err != nil { log.Fatal(err) }
+	}
+	if _, err := os.Stat(UserLogFileDirectory); os.IsNotExist(err) {
+		if err = os.MkdirAll(UserLogFileDirectory, os.ModePerm); err != nil { log.Fatal(err) }
 	}
 
 	// log 파일 연결 객체 생성
@@ -80,9 +97,15 @@ func main() {
 	al.Hooks.Add(ahk)
 	ul.Hooks.Add(uhk)
 
+	// jaeger address를 얻기 위한 consul KV 파싱
+	kp, _, err := cs.KV().Get("jaeger", nil)
+	if err != nil { log.Fatal(err) }
+	var body registryentity.Jaeger
+	if err := json.Unmarshal(kp.Value, &body); err != nil { log.Fatal(err) }
+
 	// jaeger tracer 생성을 위한 설정 객체 생성
 	sc := &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1}
-	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: "localhost:6831"}
+	rc := &jaegercfg.ReporterConfig{LogSpans: true, LocalAgentHostPort: body.Addr}
 	ajc := jaegercfg.Configuration{ServiceName: "auth-service", Sampler: sc, Reporter: rc, Tags: []opentracing.Tag{
 		{Key: "environment", Value: env},
 		{Key: "host_ip", Value: addr.IP},
