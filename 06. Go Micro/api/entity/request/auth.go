@@ -1,4 +1,4 @@
-package entity
+package request
 
 import (
 	authproto "gateway/proto/golang/auth"
