@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consul
+spec:
+  selector:
+    matchLabels:
+      run: consul-node
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: consul-node
+    spec:
+      containers:
+      - name: consul-node
+        image: consul:1.8.2
+        ports:
+          - containerPort: 8500
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: service-discovery
