@@ -10,4 +10,5 @@ spec:
   ports:
   - port: 16686
     protocol: TCP
+    name: jaeger-ui
   type: LoadBalancer

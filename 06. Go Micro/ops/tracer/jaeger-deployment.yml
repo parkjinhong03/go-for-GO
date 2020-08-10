@@ -19,7 +19,7 @@ spec:
           - containerPort: 16686
             protocol: TCP
             name: jaeger-ui
-          - continerPort: 6831
+          - containerPort: 6831
             protocol: UDP
             name: jaeger-api
       nodeSelector:
