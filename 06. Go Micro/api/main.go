@@ -47,8 +47,9 @@ func main() {
 	if os.Getenv("CONSUL_ADDRESS") == "" {
 		log.Fatal("Please set CONSUL_ADDRESS in env")
 	}
+
 	cfg := api.DefaultConfig()
-	cfg.Address = os.Getenv(os.Getenv("CONSUL_ADDRESS"))
+	cfg.Address = os.Getenv("CONSUL_ADDRESS")
 	cs, err := api.NewClient(cfg)
 	if err != nil { log.Fatal(err) }
 
