@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  selector:
+    matchLabels:
+      run: api-gateway-node
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        run: api-gateway-node
+    spec:
+      containers:
+      - name: api-gateway-node
+        image: jinhong0719/examples-blog-api-gateway:1.0.7.RELEASE
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: api-gateway
