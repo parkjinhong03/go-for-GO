@@ -3,8 +3,16 @@ services:
   consul:
     image: consul:latest
     container_name: consul_server
+    volumes:
+      - consul-data:/consul/data
     ports:
       - 8300:8300
-      - 8301:8301
+      - 8302:8301
       - 8500:8500
       - 8600:8600
+    command: "consul agent -server -bootstrap -ui -client=0.0.0.0 -data-dir=/consul/data"
+
+volumes:
+  consul-data:
+    name: consul-data
+    driver: local
