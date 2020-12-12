@@ -71,3 +71,35 @@ func (queue *AcrossLinkedQueue) GetNextNode() (node *AcrossNode) {
 	queue.current = queue.current.next
 	return
 }
+
+func solution2(bridge_length int, weight int, truck_weights []int) (time int) {
+	truckQueue := TructLinkedQueue{}
+	for _, truck_weight := range truck_weights {
+		truckQueue.Enqueue(truck_weight)
+	}
+
+	time = 1
+	crossedTrucks := []int{}
+	acrossQueue := AcrossLinkedQueue{acrossTime: bridge_length}
+	for {
+		if truckQueue.start != nil && (weight - acrossQueue.totalWeight) >= truckQueue.start.weight {
+			acrossQueue.Enqueue(truckQueue.start.weight)
+			truckQueue.Dequeue()
+		}
+
+		time++
+		for i:=0; i<acrossQueue.count; i++ {
+			acrossQueue.GetNextNode().remainTime--
+		}
+		if acrossQueue.start.remainTime == 0 {
+			acrossed := acrossQueue.Dequeue()
+			crossedTrucks = append(crossedTrucks, acrossed.weight)
+		}
+
+		if len(crossedTrucks) == len(truck_weights) {
+			break
+		}
+	}
+
+	return time
+}
