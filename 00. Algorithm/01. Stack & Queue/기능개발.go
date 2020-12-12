@@ -29,7 +29,7 @@ func (queue *PercentLinkedQueue) Enqueue(percent int) {
 }
 
 func (queue *PercentLinkedQueue) Dequeue() {
-	queue.start = queue.start.next;
+	queue.start = queue.start.next
 	queue.count--
 }
 
@@ -46,7 +46,7 @@ func (queue *PercentLinkedQueue) GetNextNode() (node *PercentNode) {
 	return
 }
 
-func solution(progresses []int, speeds []int) (results []int) {
+func solution1(progresses []int, speeds []int) (results []int) {
 	queue := &PercentLinkedQueue{}
 	for _, progress := range progresses {
 		queue.Enqueue(progress)
