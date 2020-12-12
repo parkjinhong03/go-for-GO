@@ -45,3 +45,38 @@ func (queue *PercentLinkedQueue) GetNextNode() (node *PercentNode) {
 	queue.current = queue.current.next
 	return
 }
+
+func solution(progresses []int, speeds []int) (results []int) {
+	queue := &PercentLinkedQueue{}
+	for _, progress := range progresses {
+		queue.Enqueue(progress)
+	}
+
+	for {
+		for i:=0; i<queue.count; i++ {
+			queue.GetNextNode().percent += speeds[i]
+		}
+
+		done := 0
+		for {
+			if queue.count == 0 {
+				break
+			} else if queue.GetNextNode().percent >= 100 {
+				queue.Dequeue()
+				done++
+			} else {
+				break
+			}
+		}
+		queue.InitCurrentNode()
+
+		if done != 0 {
+			results = append(results, done)
+		}
+		if queue.count == 0 {
+			break
+		}
+	}
+
+	return
+}
