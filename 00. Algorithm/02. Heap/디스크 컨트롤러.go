@@ -28,3 +28,38 @@ func (heap *JobMinHeap) HInsert(comeTime, workTime int) {
 		workTime: workTime,
 	}
 }
+
+func (heap *JobMinHeap) GetMinChildIdx(parentIdx int) int {
+	lChildIdx := parentIdx * 2
+	rChildIdx := parentIdx * 2 + 1
+	if rChildIdx > heap.NodeNum {
+		return lChildIdx
+	}
+	if heap.Nodes[lChildIdx].workTime > heap.Nodes[rChildIdx].workTime {
+		return rChildIdx
+	}
+	return lChildIdx
+}
+
+func (heap *JobMinHeap) HDelete() (deletedNode JobNode) {
+	idx := 1
+	deletedNode = heap.Nodes[idx]
+	heap.Nodes[idx] = heap.Nodes[heap.NodeNum]
+	heap.Nodes[heap.NodeNum] = JobNode{}
+	heap.NodeNum--
+
+	for {
+		if idx * 2 > heap.NodeNum {
+			break
+		}
+		childIdx := heap.GetMinChildIdx(idx)
+		if heap.Nodes[childIdx].workTime >= heap.Nodes[idx].workTime {
+			break
+		}
+		agentNode := heap.Nodes[idx]
+		heap.Nodes[idx] = heap.Nodes[childIdx]
+		heap.Nodes[childIdx] = agentNode
+		idx = childIdx
+	}
+	return
+}
