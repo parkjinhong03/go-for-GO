@@ -1,5 +1,7 @@
 package algorithm2
 
+import "sort"
+
 type JobMinHeap struct {
 	Nodes []JobNode
 	NodeNum int
@@ -62,4 +64,55 @@ func (heap *JobMinHeap) HDelete() (deletedNode JobNode) {
 		idx = childIdx
 	}
 	return
+}
+
+func solution(jobs [][]int) (avg int) {
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i][0] == jobs[j][0] && jobs[i][1] <= jobs[j][1]
+	})
+
+	heap := NewJobMinHeap(len(jobs) + 1)
+	totalJobCnt := len(jobs)
+	var currentRemainTime, totalTime, finishedCnt int
+	var currentJobNode JobNode
+	time := -1
+
+	jobsMap := map[int][]int{}
+	for _, job := range jobs {
+		if _, ok := jobsMap[job[0]]; !ok {
+			jobsMap[job[0]] = []int{}
+		}
+		jobsMap[job[0]] = append(jobsMap[job[0]], job[1])
+	}
+
+	for {
+		time++
+
+		if jobsArr, ok := jobsMap[time]; ok {
+			for _, job := range jobsArr {
+				heap.HInsert(time, job)
+			}
+			jobs = jobs[len(jobsArr):]
+		}
+
+		if currentRemainTime != 0 {
+			currentRemainTime--
+			if currentRemainTime == 0 {
+				totalTime += time - currentJobNode.comeTime
+				finishedCnt++
+			}
+		}
+
+		if finishedCnt == totalJobCnt {
+			break
+		}
+
+		if currentRemainTime == 0 && heap.NodeNum != 0 {
+			execNode := heap.HDelete()
+			currentRemainTime = execNode.workTime
+			currentJobNode = execNode
+		}
+	}
+
+	return totalTime/totalJobCnt
 }
