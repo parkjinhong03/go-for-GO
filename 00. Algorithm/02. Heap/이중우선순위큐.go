@@ -1,5 +1,10 @@
 package algorithm2
 
+import (
+	"strconv"
+	"strings"
+)
+
 type HeapNode struct {
 	data int
 }
@@ -120,4 +125,61 @@ func (heap *MaxHeap) HDelete() (deletedNode HeapNode) {
 	}
 
 	return
+}
+
+
+func solution2(operations []string) []int {
+	var opts [][]string
+	isInsertFirst := false
+	var insertCnt, deleteCnt int
+	for _, operation := range operations {
+		cmd := strings.Split(operation, " ")
+		switch cmd[0] {
+		case "I":
+			isInsertFirst = true
+			insertCnt++
+		case "D":
+			if !isInsertFirst {
+				continue
+			}
+			deleteCnt++
+		}
+		opts = append(opts, cmd)
+	}
+
+	if deleteCnt >= insertCnt {
+		return []int{0, 0}
+	}
+
+	minHeap := NewMinHeap(insertCnt + 1)
+	maxHeap := NewMaxHeap(insertCnt + 1)
+	popsMap := map[int]int{}
+	for _, opt := range opts {
+		switch opt[0] {
+		case "I":
+			insertInt, _ := strconv.Atoi(opt[1])
+			minHeap.HInsert(insertInt)
+			maxHeap.HInsert(insertInt)
+		case "D":
+			switch opt[1] {
+			case "1":
+				deletedNode := maxHeap.HDelete()
+				popsMap[deletedNode.data]++
+			case "-1":
+				deletedNode := minHeap.HDelete()
+				popsMap[deletedNode.data]++
+			}
+		}
+	}
+
+	var maxNode, minNode HeapNode
+	for {
+		maxNode = maxHeap.HDelete()
+		if _, ok := popsMap[maxNode.data]; !ok { break }
+	}
+	for {
+		minNode = minHeap.HDelete()
+		if _, ok := popsMap[minNode.data]; !ok { break }
+	}
+	return []int{maxNode.data, minNode.data}
 }
