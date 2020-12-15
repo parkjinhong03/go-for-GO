@@ -73,3 +73,51 @@ func NewMaxHeap(queueLen int) MaxHeap {
 		Nodes: make([]HeapNode, queueLen),
 	}
 }
+
+func (heap *MaxHeap) getMaxChildIdx(parentIdx int) int {
+	lChildIdx := parentIdx * 2
+	rChildIdx := parentIdx * 2 + 1
+	if rChildIdx > heap.count {
+		return lChildIdx
+	}
+	if heap.Nodes[lChildIdx].data > heap.Nodes[rChildIdx].data {
+		return lChildIdx
+	}
+	return rChildIdx
+}
+
+func (heap *MaxHeap) HInsert(data int) {
+	heap.count++
+	idx := heap.count
+	for ; idx != 1 && data > heap.Nodes[idx/2].data; {
+		heap.Nodes[idx] = heap.Nodes[idx/2]
+		idx /= 2
+	}
+	heap.Nodes[idx] = HeapNode{
+		data: data,
+	}
+}
+
+func (heap *MaxHeap) HDelete() (deletedNode HeapNode) {
+	idx := 1
+	deletedNode = heap.Nodes[idx]
+	heap.Nodes[idx] = heap.Nodes[heap.count]
+	heap.Nodes[heap.count] = HeapNode{}
+	heap.count--
+
+	for {
+		if idx * 2 > heap.count {
+			break
+		}
+		childIdx := heap.getMaxChildIdx(idx)
+		if heap.Nodes[idx].data >= heap.Nodes[childIdx].data {
+			break
+		}
+		agentNode := heap.Nodes[idx]
+		heap.Nodes[idx] = heap.Nodes[childIdx]
+		heap.Nodes[childIdx] = agentNode
+		idx = childIdx
+	}
+
+	return
+}
