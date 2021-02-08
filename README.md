@@ -31,7 +31,7 @@
 <br>
 
 **언어별 키워드 수**
-![KeywordsGraph](img/KeywordsGraph.png)
+![KeywordsGraph](01.%20Syntax/img/KeywordsGraph.png)
 
 <br>
 
@@ -44,7 +44,7 @@
 <br>
 
 **인텔 프로세서의 트랜지스터 집적수 성장과 무허의 법칙**
-![TransistorGraph](img/TransistorGraph.png)
+![TransistorGraph](01.%20Syntax/img/TransistorGraph.png)
 
 <br>
 
@@ -55,7 +55,7 @@
 <br>
 
 **고루틴과 채널**
-![GoRoutine](img/GoRoutine.jpg)
+![GoRoutine](01.%20Syntax/img/GoRoutine.jpg)
 - **동시에 처리**해야 하는 작업은 **고루틴**으로 실행하고, **고루틴**끼리 **메세지**를 **주고 받는 작업**은 **채널**이라는 통로를 사용한다.
 - **고루틴**은 Go 프로그램 안에서 **동시에 독립적으로 실행되는 흐름의 단위**로, **스레드**와 비슷한 개념이다.
 - 하지만 스레드와 달리 **매우 적은 리소스**에서 동작하므로 **한 프로세스**에 **수천, 수만 개의 고루틴**을 동작시킬 수 있다.
@@ -68,7 +68,7 @@
 <br>
 
 **정적 언어와 동적 언어**
-![DynamicStatic](img/DynamicStatic.jpg)
+![DynamicStatic](01.%20Syntax/img/DynamicStatic.jpg)
 
 <br>
 
@@ -80,7 +80,7 @@
 <br>
 
 **동적 언어의 개발 속도와 정적 언어의 안정성을 갖춘 Go 언어**
-![Dynamic+Static](img/Dynamic+Static.jpg)
+![Dynamic+Static](01.%20Syntax/img/Dynamic+Static.jpg)
 
 <br>
 
@@ -108,7 +108,7 @@
 <br>
 
 **TDD의 개발 사이클**
-![TDDCycle](img/TDDCycle.jpg)
+![TDDCycle](01.%20Syntax/img/TDDCycle.jpg)
 
 <br>
 
