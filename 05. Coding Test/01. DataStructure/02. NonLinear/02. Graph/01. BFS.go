@@ -4,3 +4,28 @@
 
 // 방문할 노드들을 Stack이 아닌 Queue에 저장하는 이유는?
 //  -> 먼저 들어온 노드를 먼저 방문해야 노드의 단계들을 순차적으로 방문할 수 있기 때문
+
+package main
+
+// Int 타입 전용 Queue 구현 객체
+type intQueue []int
+
+func IntQueue() *intQueue {
+	return &intQueue{}
+}
+
+// 요소 삽입
+func (q *intQueue) Push(i int) {
+	*q = append(*q, i)
+}
+
+// 첫 번째 요소 추출
+func (q *intQueue) Pop() (i int) {
+	i, *q = (*q)[0], (*q)[1:]
+	return
+}
+
+// Queue 요소 갯수 반환
+func (q *intQueue) Size() int {
+	return len(*q)
+}
