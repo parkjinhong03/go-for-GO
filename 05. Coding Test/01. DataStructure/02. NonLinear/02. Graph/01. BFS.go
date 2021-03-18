@@ -7,6 +7,28 @@
 
 package main
 
+import (
+	"fmt"
+)
+
+func main() {
+	// 노드 개수가 5개인 그래프 선언
+	g := Graph(5)
+
+	// from 번째 노드부터 to 번째 노드들 까지의 간선 추가
+	for from, to := range map[int][]int {
+		0: {1, 2, 4},
+		1: {0, 2},
+		2: {0, 1, 3, 4},
+		3: {2},
+		4: {0, 2},
+	} {
+		g.AddEdge(from, to)
+	}
+	
+	fmt.Println(g.BFS(0)) // [0 1 2 4 3]
+}
+
 // 그래프 구현 객체
 type graph struct {
 	// 노드의 총 갯수
