@@ -7,6 +7,33 @@
 
 package main
 
+// 그래프 구현 객체
+type graph struct {
+	// 노드의 총 갯수
+	nodeNum int
+
+	// 노드 간의 간선을 표시하는 인접 리스트
+	// Ex) nodeNum -> 3, adj -> [0: [1], 1: [0, 2], 2: [1]]
+	// 0번째 노드: 1번째 노드와 연결
+	// 1번째 노드: 0, 2번쨰 노드와 연결
+	// 2번째 노드: 1번째 노드와 연결
+	//     0
+	//   / 
+	//  1  -  2
+	adj [][]int // adjacent list
+}
+
+func Graph(num int) (g *graph) {
+	g = &graph{
+		nodeNum: num,
+		adj: [][]int{},
+	}
+	for i:=0; i<num; i++ {
+		g.adj = append(g.adj, []int{})
+	}
+	return
+}
+
 // Int 타입 전용 Queue 구현 객체
 type intQueue []int
 
