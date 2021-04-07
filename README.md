@@ -73,7 +73,7 @@
 
 <br>
 
-**동적 언어의 개발 속도와 정적 언어의 안정성을 갖춘 Go 언어**
+**동적 언어의 개발 속도와 정적 언어의 안정성을 갖춘 Go 언어**
 ![Dynamic+Static](01.%20Syntax/img/Dynamic+Static.jpg)
 
 <br>
